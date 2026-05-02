@@ -3,10 +3,17 @@
 
 @theme {
   --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --color-brand: #513C3C;
+  --color-brand-hover: #3a2a2a;
 }
 
 :root {
   font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-theme="teacher"] {
+  --color-brand: #000000;
+  --color-brand-hover: #333333;
 }
 
 body {

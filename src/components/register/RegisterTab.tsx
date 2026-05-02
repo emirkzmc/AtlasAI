@@ -21,7 +21,7 @@ function RegisterTab({ role, onChange }: RegisterTabProps) {
     >
       {/* Sliding indicator */}
       <motion.div
-        className="absolute top-1 bottom-1 rounded-lg bg-[#513C3C] shadow-md"
+        className="absolute top-1 bottom-1 rounded-lg bg-brand shadow-md"
         layout
         transition={tabSpring}
         style={{
@@ -34,7 +34,7 @@ function RegisterTab({ role, onChange }: RegisterTabProps) {
         type="button"
         onClick={() => onChange('student')}
         className={`relative z-10 cursor-pointer rounded-lg border-none px-5 py-2 text-sm font-semibold transition-colors duration-200 ${
-          isStudent ? 'text-white' : 'text-[#513C3C] hover:text-[#3a2a2a]'
+          isStudent ? 'text-white' : 'text-brand hover:text-brand-hover'
         }`}
         style={{ background: 'transparent' }}
       >
@@ -45,7 +45,7 @@ function RegisterTab({ role, onChange }: RegisterTabProps) {
         type="button"
         onClick={() => onChange('teacher')}
         className={`relative z-10 cursor-pointer rounded-lg border-none px-5 py-2 text-sm font-semibold transition-colors duration-200 ${
-          !isStudent ? 'text-white' : 'text-[#513C3C] hover:text-[#3a2a2a]'
+          !isStudent ? 'text-white' : 'text-brand hover:text-brand-hover'
         }`}
         style={{ background: 'transparent' }}
       >

@@ -33,28 +33,24 @@ function DateInput({ name, label, placeholder }: DateInputProps) {
 
   return (
     <div ref={wrapperRef} className="relative w-full">
-      {/* Hidden native input for form submission */}
       <input type="hidden" name={name} value={date ? date.format('YYYY-MM-DD') : ''} />
 
-      {/* Clickable display input */}
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full cursor-pointer items-center rounded-[10px] border border-[#D1D1D1] bg-white px-3.5 pb-2 pt-5 text-left text-sm outline-none transition-colors focus:border-[#513C3C]"
+        className="flex w-full cursor-pointer items-center rounded-[10px] border border-[#D1D1D1] bg-white px-3.5 pb-2 pt-5 text-left text-sm outline-none transition-colors focus:border-brand"
       >
         <span className={date ? 'text-[#3F3131]' : 'text-transparent'}>
           {date ? date.format('DD / MM / YYYY') : placeholder}
         </span>
       </button>
 
-      {/* Floating Label */}
       <Label
-        className={date || open ? 'top-1.5 text-xs font-medium text-[#513C3C]' : 'top-3.5 text-sm text-[#513C3C]'}
+        className={date || open ? 'top-1.5 text-xs font-medium text-[#786c6c]' : 'top-3.5 text-sm text-brand'}
       >
         {label}
       </Label>
 
-      {/* Calendar popup */}
       <AnimatePresence>
         {open && (
           <motion.div

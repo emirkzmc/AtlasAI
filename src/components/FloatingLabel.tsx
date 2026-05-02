@@ -32,7 +32,7 @@ export default function FloatingLabel({ label, name, type = 'text' }: FloatingLa
       />
       <Label
         htmlFor={name}
-        className={active ? 'top-1.5 text-xs font-medium text-[#513C3C]' : 'top-3.5 text-sm text-[#513C3C]'}
+        className={active ? 'top-1.5 text-xs font-medium text-[#786c6c]' : 'top-3.5 text-sm text-brand'}
       >
         {label}
       </Label>
@@ -42,7 +42,7 @@ export default function FloatingLabel({ label, name, type = 'text' }: FloatingLa
           type="button"
           variant="icon"
           onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7F6B67] hover:text-[#513C3C]"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7F6B67] hover:text-brand"
           aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
         >
           {showPassword ? (

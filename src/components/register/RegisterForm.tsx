@@ -15,15 +15,10 @@ type FieldDef = {
 type RegisterFormProps = {
   role: Role
   fields: FieldDef[]
-  direction: number
   onRoleChange: (role: Role) => void
 }
 
-const formVariants = {
-  initial: (dir: number) => ({ x: dir * -60, opacity: 0 }),
-  animate: { x: 0, opacity: 1, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const } },
-  exit: (dir: number) => ({ x: dir * 60, opacity: 0, transition: { duration: 0.35, ease: 'easeIn' as const } }),
-}
+
 
 const fieldVariants = {
   hidden: { opacity: 0, y: 14 },
@@ -35,22 +30,13 @@ const staggerVariants = {
   hidden: {},
 }
 
-function RegisterForm({ role, fields, direction, onRoleChange }: RegisterFormProps) {
+function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
   return (
-    <AnimatePresence mode="wait" custom={direction}>
-      <motion.div
-        key={role + '-form'}
-        className="flex w-1/2 h-screen flex-col justify-center gap-5 bg-white px-20 xl:px-32 2xl:px-40 py-8"
-        custom={direction}
-        variants={formVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-      >
+    <div className="flex w-full h-full flex-col justify-center gap-5 bg-white px-20 xl:px-32 2xl:px-40 py-8">
         {/* ── Title + Tab ── */}
         <div className="flex justify-between gap-4">
           <motion.h1
-            className="m-0 text-[32px] font-bold text-[#513C3C]"
+            className="m-0 text-[32px] font-bold text-brand"
             initial={{ y: -10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.15, duration: 0.4 }}
@@ -109,8 +95,7 @@ function RegisterForm({ role, fields, direction, onRoleChange }: RegisterFormPro
             Giriş yap
           </span>
         </motion.p>
-      </motion.div>
-    </AnimatePresence>
+      </div>
   )
 }
 

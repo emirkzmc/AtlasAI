@@ -19,7 +19,7 @@ function RegisterImage({ role, direction }: RegisterImageProps) {
     <AnimatePresence mode="wait" custom={direction}>
       <motion.div
         key={role + '-img'}
-        className="relative h-full w-1/2 overflow-hidden"
+        className="relative h-full w-full overflow-hidden pointer-events-none"
         custom={direction}
         variants={imageVariants}
         initial="initial"
@@ -27,7 +27,7 @@ function RegisterImage({ role, direction }: RegisterImageProps) {
         exit="exit"
       >
         <motion.img
-          src={isStudent ? '/img/login-img.webp' : '/img/login-img2.webp'}
+          src={isStudent ? '/img/login-img.png' : '/img/login-img2.png'}
           alt="Kayıt görseli"
           className="h-full w-full object-cover"
           initial={{ scale: 1.08 }}
