@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import Button from '../Button'
 import FloatingLabel from '../FloatingLabel'
 import DateInput from './DateInput'
@@ -91,9 +92,9 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
           transition={{ delay: 0.5 }}
         >
           Zaten hesabın var mı?{' '}
-          <span className="cursor-pointer font-semibold text-[#5B4F4B] hover:underline">
+          <Link to="/login" className="font-semibold text-[#5B4F4B] hover:underline">
             Giriş yap
-          </span>
+          </Link>
         </motion.p>
       </div>
   )
