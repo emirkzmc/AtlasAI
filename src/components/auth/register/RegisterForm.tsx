@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import Button from '../Button'
-import FloatingLabel from '../FloatingLabel'
+import Button from '../../Button'
+import FloatingLabel from '../../FloatingLabel'
 import DateInput from './DateInput'
 import RegisterTab from './RegisterTab'
 
@@ -85,6 +85,7 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
         </form>
 
         {/* ── Footer link ── */}
+        <div className='w-full flex justify-center'> 
         <motion.p
           className="m-0 text-sm text-[#7F6B67]"
           initial={{ opacity: 0 }}
@@ -96,6 +97,7 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
             Giriş yap
           </Link>
         </motion.p>
+        </div>
       </div>
   )
 }

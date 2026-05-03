@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import Logo from '../Logo'
+import Logo from '../../Logo'
 
 type RegisterImageProps = {
   role: 'student' | 'teacher'

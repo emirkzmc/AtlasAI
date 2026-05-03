@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import RegisterImage from '../components/register/RegisterImage'
-import RegisterForm from '../components/register/RegisterForm'
+import RegisterImage from '../../components/auth/register/RegisterImage'
+import RegisterForm from '../../components/auth/register/RegisterForm'
 
 type Role = 'student' | 'teacher'
 

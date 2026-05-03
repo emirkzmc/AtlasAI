@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import type { Dayjs } from 'dayjs'
 import { AnimatePresence, motion } from 'framer-motion'
-import DateCalendarPicker from '../DateCalendar'
-import Label from '../Label'
+import DateCalendarPicker from '../../DateCalendar'
+import Label from '../../Label'
 
 type DateInputProps = {
   name: string
