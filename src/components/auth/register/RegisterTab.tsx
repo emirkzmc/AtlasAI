@@ -19,7 +19,6 @@ function RegisterTab({ role, onChange }: RegisterTabProps) {
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.22, duration: 0.4 }}
     >
-      {/* Sliding indicator */}
       <motion.div
         className="absolute top-1 bottom-1 rounded-lg bg-brand shadow-md"
         layout

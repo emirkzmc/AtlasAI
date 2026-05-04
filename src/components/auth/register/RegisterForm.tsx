@@ -1,9 +1,13 @@
+import { useState, type FormEvent, type ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import Button from '../../Button'
 import FloatingLabel from '../../FloatingLabel'
 import DateInput from './DateInput'
 import RegisterTab from './RegisterTab'
+import { useAuth } from '../../../hooks/useAuth'
+import type { UserRole } from '../../../types/auth.types'
 
 type Role = 'student' | 'teacher'
 
@@ -19,8 +23,6 @@ type RegisterFormProps = {
   onRoleChange: (role: Role) => void
 }
 
-
-
 const fieldVariants = {
   hidden: { opacity: 0, y: 14 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
@@ -32,6 +34,45 @@ const staggerVariants = {
 }
 
 function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
+  const { register } = useAuth()
+  const navigate = useNavigate()
+
+  const [formValues, setFormValues] = useState<Record<string, string>>({})
+  const [submitting, setSubmitting] = useState<boolean>(false)
+
+  function handleChange(e: ChangeEvent<HTMLInputElement>): void {
+    const { name, value } = e.target
+    setFormValues((prev) => ({ ...prev, [name]: value }))
+  }
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault()
+    setSubmitting(true)
+
+    const email = formValues['email'] ?? ''
+    const password = formValues['password'] ?? ''
+
+    if (!email || !password) {
+      toast.error('E-posta ve şifre alanları zorunludur.')
+      setSubmitting(false)
+      return
+    }
+
+    try {
+      await register({ email, password, role: role as UserRole })
+      toast.success('Hesabınız oluşturuldu! Doğrulama bağlantısı e-posta adresinize gönderildi.')
+      navigate('/login')
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        toast.error(err.message)
+      } else {
+        toast.error('Kayıt sırasında bir hata oluştu.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className="flex w-full h-full flex-col justify-center gap-5 bg-white px-20 xl:px-32 2xl:px-40 py-8">
         {/* ── Title + Tab ── */}
@@ -49,7 +90,7 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
         </div>
 
         {/* ── Fields (staggered) ── */}
-        <form className="flex flex-col gap-3.5">
+        <form className="flex flex-col gap-3.5" onSubmit={handleSubmit}>
           <AnimatePresence mode="wait">
             <motion.div
               key={role + '-fields'}
@@ -72,13 +113,17 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
                       name={field.name}
                       label={field.label}
                       type={field.type}
+                      value={formValues[field.name] ?? ''}
+                      onChange={handleChange}
                     />
                   )}
                 </motion.div>
               ))}
 
               <motion.div variants={fieldVariants}>
-                <Button type="submit">Hesap Oluşturun</Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? 'Kayıt yapılıyor...' : 'Hesap Oluşturun'}
+                </Button>
               </motion.div>
             </motion.div>
           </AnimatePresence>

@@ -1,8 +1,13 @@
-import { Link } from 'react-router-dom'
+import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import toast from 'react-hot-toast'
 import FloatingLabel from '../../FloatingLabel'
 import Button from '../../Button'
 import Logo from '../../Logo'
+import { useAuth } from '../../../hooks/useAuth'
+import { resendVerificationEmail } from '../../../services/auth.service'
+import type { LoginCredentials } from '../../../types/auth.types'
 
 const fieldVariants = {
   hidden: { opacity: 0, y: 14 },
@@ -15,10 +20,69 @@ const staggerVariants = {
 }
 
 function LoginForm() {
+  const { login, user } = useAuth()
+  const navigate = useNavigate()
+
+  const [credentials, setCredentials] = useState<LoginCredentials>({
+    email: '',
+    password: '',
+  })
+  const [submitting, setSubmitting] = useState<boolean>(false)
+  const [showResend, setShowResend] = useState<boolean>(false)
+  const [resending, setResending] = useState<boolean>(false)
+
+  useEffect(() => {
+    if (user) {
+      toast.success('Hoş geldiniz!')
+      navigate(`/panel/${user.role}`, { replace: true })
+    }
+  }, [user, navigate])
+
+  function handleChange(e: ChangeEvent<HTMLInputElement>): void {
+    const { name, value } = e.target
+    setCredentials((prev) => ({ ...prev, [name]: value }))
+  }
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault()
+    setShowResend(false)
+    setSubmitting(true)
+    try {
+      await login(credentials)
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        if (err.message === 'Lütfen önce e-posta adresinizi doğrulayın.') {
+          toast.error('E-posta adresinizi doğrulamadınız. Lütfen gelen kutunuzu kontrol edin.')
+          setShowResend(true)
+        } else {
+          toast.error(err.message)
+        }
+      } else {
+        toast.error('Giriş sırasında bir hata oluştu.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleResend(): Promise<void> {
+    setResending(true)
+    try {
+      await resendVerificationEmail(credentials.email, credentials.password)
+      toast.success('Doğrulama maili tekrar gönderildi.')
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        toast.error(err.message)
+      } else {
+        toast.error('Doğrulama maili gönderilemedi.')
+      }
+    } finally {
+      setResending(false)
+    }
+  }
+
   return (
     <section className="w-full lg:w-1/2 h-full flex flex-col justify-center relative px-8 sm:px-16 md:px-24 lg:px-32 xl:px-40 py-8">
-      
-      {/* Logo */}
       <motion.div 
         className="absolute top-12 right-12 text-[32px] font-medium text-gray-900 tracking-wide"
         initial={{ opacity: 0 }}
@@ -48,7 +112,7 @@ function LoginForm() {
 
         <motion.form 
           className="flex flex-col gap-5" 
-          onSubmit={(e) => e.preventDefault()}
+          onSubmit={handleSubmit}
           initial="hidden"
           animate="visible"
           variants={staggerVariants}
@@ -58,6 +122,8 @@ function LoginForm() {
               name="email"
               label="E-posta"
               type="email"
+              value={credentials.email}
+              onChange={handleChange}
             />
           </motion.div>
           
@@ -66,6 +132,8 @@ function LoginForm() {
               name="password"
               label="Şifre"
               type="password"
+              value={credentials.password}
+              onChange={handleChange}
             />
             <div className="text-right">
               <button type="button" className="text-[13px] font-semibold text-[#5B4F4B] hover:text-brand transition-colors cursor-pointer">
@@ -75,11 +143,29 @@ function LoginForm() {
           </motion.div>
 
           <motion.div variants={fieldVariants}>
-            <Button type="submit" className="mt-2 h-12">
-              Giriş
+            <Button type="submit" className="mt-2 h-12" disabled={submitting}>
+              {submitting ? 'Giriş yapılıyor...' : 'Giriş'}
             </Button>
           </motion.div>
         </motion.form>
+
+        {showResend && (
+          <motion.div
+            className="mt-4 text-center"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="text-[13px] font-semibold text-brand hover:underline cursor-pointer bg-transparent border-none"
+              style={{ fontFamily: 'inherit' }}
+            >
+              {resending ? 'Gönderiliyor...' : 'Tekrar Gönder'}
+            </button>
+          </motion.div>
+        )}
 
         <motion.p 
           className="mt-12 text-center text-[13px] text-[#7F6B67]"
@@ -94,7 +180,6 @@ function LoginForm() {
         </motion.p>
       </div>
 
-      {/* Footer */}
       <motion.div 
         className="absolute bottom-10 right-12 text-[11px] text-[#7F6B67]/70 font-medium tracking-wide"
         initial={{ opacity: 0 }}

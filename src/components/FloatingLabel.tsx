@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import Input from './Input'
 import Button from './Button'
 import Label from './Label'
@@ -7,16 +7,30 @@ type FloatingLabelProps = {
   label: string
   name: string
   type?: string
+  value?: string
+  onChange?: (e: ChangeEvent<HTMLInputElement>) => void
 }
 
-export default function FloatingLabel({ label, name, type = 'text' }: FloatingLabelProps) {
+export default function FloatingLabel({ label, name, type = 'text', value: controlledValue, onChange: controlledOnChange }: FloatingLabelProps) {
   const [isFocused, setIsFocused] = useState(false)
-  const [value, setValue] = useState('')
+  const [internalValue, setInternalValue] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+
+  const isControlled = controlledValue !== undefined
+  const value = isControlled ? controlledValue : internalValue
 
   const active = isFocused || value.length > 0
   const isPasswordType = type === 'password'
   const inputType = isPasswordType ? (showPassword ? 'text' : 'password') : type
+
+  function handleChange(e: ChangeEvent<HTMLInputElement>): void {
+    if (controlledOnChange) {
+      controlledOnChange(e)
+    }
+    if (!isControlled) {
+      setInternalValue(e.target.value)
+    }
+  }
 
   return (
     <div className="relative w-full">
@@ -25,7 +39,7 @@ export default function FloatingLabel({ label, name, type = 'text' }: FloatingLa
         name={name}
         type={inputType}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={handleChange}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         className={isPasswordType ? 'pr-10' : ''}

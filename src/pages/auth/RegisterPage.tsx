@@ -15,7 +15,6 @@ const studentFields = [
 
 const teacherFields = [
   { name: 'fullName', label: 'Ad Soyad', type: 'text' },
-  { name: 'department', label: 'Bölüm', type: 'text' },
   { name: 'phone', label: 'Telefon numarası', type: 'tel' },
   { name: 'email', label: 'E-posta', type: 'email' },
   { name: 'password', label: 'Şifre', type: 'password' },
@@ -31,7 +30,6 @@ function RegisterPage() {
   return (
     <main className="h-screen w-screen overflow-hidden" data-theme={role}>
       <section className="relative h-full w-full bg-[#f4f4f4]">
-        {/* Left Side (Student Image) */}
         <div className="absolute top-0 bottom-0 left-0 w-1/2 overflow-hidden">
           <AnimatePresence>
             {isStudent && (
@@ -49,7 +47,6 @@ function RegisterPage() {
           </AnimatePresence>
         </div>
 
-        {/* Right Side (Teacher Image) */}
         <div className="absolute top-0 bottom-0 right-0 w-1/2 overflow-hidden">
           <AnimatePresence>
             {!isStudent && (
@@ -67,7 +64,6 @@ function RegisterPage() {
           </AnimatePresence>
         </div>
 
-        {/* Form side */}
         <motion.div
           className="absolute top-0 bottom-0 w-1/2 z-10 shadow-2xl"
           initial={false}
