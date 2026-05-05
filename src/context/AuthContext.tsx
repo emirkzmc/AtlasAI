@@ -12,6 +12,7 @@ import {
   getUserFromFirestore,
   subscribeToAuthState,
 } from "../services/auth.service";
+import type { JSX } from "react/jsx-runtime";
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

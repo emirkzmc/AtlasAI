@@ -8,6 +8,7 @@ import DateInput from './DateInput'
 import RegisterTab from './RegisterTab'
 import { useAuth } from '../../../hooks/useAuth'
 import type { UserRole } from '../../../types/auth.types'
+import { features } from '../../../config/features'
 
 type Role = 'student' | 'teacher'
 
@@ -74,8 +75,7 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
   }
 
   return (
-    <div className="flex w-full h-full flex-col justify-center gap-5 bg-white px-20 xl:px-32 2xl:px-40 py-8">
-        {/* ── Title + Tab ── */}
+    <div className="flex w-full h-full flex-col py-35 gap-5 bg-white px-20 xl:px-32 2xl:px-40">
         <div className="flex justify-between gap-4">
           <motion.h1
             className="m-0 text-[32px] font-bold text-brand"
@@ -86,10 +86,11 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
             Kayıt Ol
           </motion.h1>
 
-          <RegisterTab role={role} onChange={onRoleChange} />
+          {features.enableTeacherFeatures && (
+            <RegisterTab role={role} onChange={onRoleChange} />
+          )}
         </div>
 
-        {/* ── Fields (staggered) ── */}
         <form className="flex flex-col gap-3.5" onSubmit={handleSubmit}>
           <AnimatePresence mode="wait">
             <motion.div
@@ -125,24 +126,18 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
                   {submitting ? 'Kayıt yapılıyor...' : 'Hesap Oluşturun'}
                 </Button>
               </motion.div>
+
+              <motion.div variants={fieldVariants} className="w-full flex justify-center mt-1"> 
+                <p className="m-0 text-sm text-[#7F6B67]">
+                  Zaten hesabın var mı?{' '}
+                  <Link to="/login" className="font-semibold text-[#5B4F4B] hover:underline">
+                    Giriş yap
+                  </Link>
+                </p>
+              </motion.div>
             </motion.div>
           </AnimatePresence>
         </form>
-
-        {/* ── Footer link ── */}
-        <div className='w-full flex justify-center'> 
-        <motion.p
-          className="m-0 text-sm text-[#7F6B67]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          Zaten hesabın var mı?{' '}
-          <Link to="/login" className="font-semibold text-[#5B4F4B] hover:underline">
-            Giriş yap
-          </Link>
-        </motion.p>
-        </div>
       </div>
   )
 }

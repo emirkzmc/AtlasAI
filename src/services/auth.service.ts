@@ -22,6 +22,7 @@ import type {
   RegisterCredentials,
   UserRole,
 } from "../types/auth.types";
+import { features } from "../config/features";
 
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -49,6 +50,11 @@ export async function loginWithEmail(
 
     if (!authUser) {
       throw new Error("Kullanıcı verisi bulunamadı.");
+    }
+
+    if (authUser.role === "teacher" && !features.enableTeacherFeatures) {
+      await signOut(auth);
+      throw new Error("Öğretmen işlemleri şu anda kullanılamaz.");
     }
 
     return authUser;

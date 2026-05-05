@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import RegisterImage from '../../components/auth/register/RegisterImage'
 import RegisterForm from '../../components/auth/register/RegisterForm'
+import { features } from '../../config/features'
 
 type Role = 'student' | 'teacher'
 
@@ -49,7 +50,7 @@ function RegisterPage() {
 
         <div className="absolute top-0 bottom-0 right-0 w-1/2 overflow-hidden">
           <AnimatePresence>
-            {!isStudent && (
+            {!isStudent && features.enableTeacherFeatures && (
               <motion.div
                 key="teacher-img"
                 className="h-full w-full"
@@ -67,7 +68,7 @@ function RegisterPage() {
         <motion.div
           className="absolute top-0 bottom-0 w-1/2 z-10 shadow-2xl"
           initial={false}
-          animate={{ left: isStudent ? '50%' : '0%' }}
+          animate={{ left: isStudent || !features.enableTeacherFeatures ? '50%' : '0%' }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
           <RegisterForm role={role} fields={fields} onRoleChange={setRole} />

@@ -7,6 +7,7 @@ import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { RoleRoute } from "./routes/RoleRoute";
 import { StudentDashboard } from "./pages/panel/student/Dashboard";
 import { TeacherDashboard } from "./pages/panel/teacher/Dashboard";
+import { features } from "./config/features";
 import type { JSX } from "react";
 
 function App(): JSX.Element {
@@ -23,9 +24,11 @@ function App(): JSX.Element {
           <Route element={<RoleRoute allowedRole="student" />}>
             <Route path="/panel/student" element={<StudentDashboard />} />
           </Route>
-          <Route element={<RoleRoute allowedRole="teacher" />}>
-            <Route path="/panel/teacher" element={<TeacherDashboard />} />
-          </Route>
+          {features.enableTeacherFeatures && (
+            <Route element={<RoleRoute allowedRole="teacher" />}>
+              <Route path="/panel/teacher" element={<TeacherDashboard />} />
+            </Route>
+          )}
         </Route>
       </Routes>
     </AuthProvider>
