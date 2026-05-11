@@ -6,6 +6,7 @@ function LoginPage() {
     <main className="h-screen w-screen overflow-hidden flex bg-white">
       <LoginImage />
       <LoginForm />
+      
     </main>
   )
 }

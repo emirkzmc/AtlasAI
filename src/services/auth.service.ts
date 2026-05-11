@@ -24,6 +24,40 @@ import type {
 } from "../types/auth.types";
 import { features } from "../config/features";
 
+/**
+ * Helper function to translate Firebase error codes to user-friendly Turkish messages.
+ */
+function getAuthErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'code' in error) {
+    switch (error.code) {
+      case 'auth/email-already-in-use':
+        return 'Bu e-posta adresi ile zaten bir hesap bulunuyor.';
+      case 'auth/invalid-email':
+        return 'Geçersiz bir e-posta adresi girdiniz.';
+      case 'auth/weak-password':
+        return 'Şifreniz çok zayıf. Lütfen daha güçlü bir şifre belirleyin (en az 6 karakter).';
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+      case 'auth/invalid-credential':
+        return 'E-posta adresiniz veya şifreniz hatalı.';
+      case 'auth/too-many-requests':
+        return 'Çok fazla başarısız deneme yaptınız. Lütfen daha sonra tekrar deneyin.';
+      case 'auth/network-request-failed':
+        return 'Ağ bağlantısı hatası. Lütfen internet bağlantınızı kontrol edin.';
+      case 'auth/operation-not-allowed':
+        return 'Bu giriş yöntemi şu anda devre dışı bırakılmış.';
+    }
+  }
+  
+  if (error instanceof Error) {
+    // If it's a generic Firebase error message, we might still want to return it,
+    // but without the "Firebase: " prefix if possible, though custom errors from our code are fine.
+    return error.message;
+  }
+  
+  return 'Beklenmeyen bir hata oluştu.';
+}
+
 const auth = getAuth(app);
 const db = getFirestore(app);
 
@@ -59,10 +93,8 @@ export async function loginWithEmail(
 
     return authUser;
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      throw new Error(error.message, { cause: error });
-    }
-    throw new Error("Giriş sırasında beklenmeyen bir hata oluştu.", { cause: error });
+    const message = getAuthErrorMessage(error);
+    throw new Error(message, { cause: error });
   }
 }
 
@@ -107,10 +139,8 @@ export async function registerWithEmail(
 
     return authUser;
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      throw new Error(error.message, { cause: error });
-    }
-    throw new Error("Kayıt sırasında beklenmeyen bir hata oluştu.", { cause: error });
+    const message = getAuthErrorMessage(error);
+    throw new Error(message, { cause: error });
   }
 }
 
@@ -180,10 +210,8 @@ export async function resendVerificationEmail(
     await sendEmailVerification(user);
     await signOut(auth);
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      throw new Error(error.message, { cause: error });
-    }
-    throw new Error("Doğrulama maili gönderilirken hata oluştu.", { cause: error });
+    const message = getAuthErrorMessage(error);
+    throw new Error(message, { cause: error });
   }
 }
 
