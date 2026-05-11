@@ -3,15 +3,15 @@ import { useAuth } from "../hooks/useAuth";
 import Loader from "../components/Loader";
 import type { JSX } from "react";
 
-export function ProtectedRoute(): JSX.Element {
+export function PublicRoute(): JSX.Element {
   const { user, loading } = useAuth();
 
   if (loading) {
     return <Loader />;
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (user) {
+    return <Navigate to={`/panel/${user.role}`} replace />;
   }
 
   return <Outlet />;

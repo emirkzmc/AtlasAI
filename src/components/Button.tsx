@@ -3,6 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode
   variant?: 'primary' | 'icon'
+  onClick?: () => void
 }
 
 function Button({ children, className = '', variant = 'primary', ...props }: ButtonProps) {
@@ -17,6 +18,7 @@ function Button({ children, className = '', variant = 'primary', ...props }: But
     <button
       {...props}
       className={`${baseStyles} ${className}`.trim()}
+      onClick={props.onClick}
     >
       {children}
     </button>

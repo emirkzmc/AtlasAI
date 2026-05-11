@@ -1,5 +1,5 @@
-import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, type FormEvent, type ChangeEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import FloatingLabel from '../../FloatingLabel'
@@ -20,8 +20,7 @@ const staggerVariants = {
 }
 
 function LoginForm() {
-  const { login, user } = useAuth()
-  const navigate = useNavigate()
+  const { login } = useAuth()
 
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: '',
@@ -31,12 +30,7 @@ function LoginForm() {
   const [showResend, setShowResend] = useState<boolean>(false)
   const [resending, setResending] = useState<boolean>(false)
 
-  useEffect(() => {
-    if (user) {
-      toast.success('Hoş geldiniz!')
-      navigate(`/panel/${user.role}`, { replace: true })
-    }
-  }, [user, navigate])
+  // Navigation is handled by PublicRoute observing `user` state
 
   function handleChange(e: ChangeEvent<HTMLInputElement>): void {
     const { name, value } = e.target
@@ -49,6 +43,7 @@ function LoginForm() {
     setSubmitting(true)
     try {
       await login(credentials)
+      toast.success('Hoş geldiniz!')
     } catch (err: unknown) {
       if (err instanceof Error) {
         if (err.message === 'Lütfen önce e-posta adresinizi doğrulayın.') {
@@ -186,7 +181,7 @@ function LoginForm() {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.6 }}
       >
-        © 2024 Admix Academy.
+        © 2026 Admix Academy.
       </motion.div>
     </section>
   )

@@ -4,6 +4,7 @@ import { AuthProvider } from "./context/AuthContext";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
+import { PublicRoute } from "./routes/PublicRoute";
 import { RoleRoute } from "./routes/RoleRoute";
 import { StudentDashboard } from "./pages/panel/student/Dashboard";
 import { TeacherDashboard } from "./pages/panel/teacher/Dashboard";
@@ -15,9 +16,12 @@ function App(): JSX.Element {
     <AuthProvider>
       <Toaster position="top-right" reverseOrder={false} />
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        {/* Public routes */}
+        <Route element={<PublicRoute />}>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+        </Route>
 
         {/* Protected panel routes */}
         <Route element={<ProtectedRoute />}>

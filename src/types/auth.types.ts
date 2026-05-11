@@ -1,10 +1,18 @@
 export type UserRole = "student" | "teacher";
 
+export type FormFieldDef = {
+  name: string;
+  label: string;
+  type: string;
+};
+
 export interface AuthUser {
   uid: string;
   email: string;
   role: UserRole;
   createdAt: Date;
+  fullName?: string;
+  photoURL?: string;
 }
 
 export interface LoginCredentials {
@@ -16,6 +24,7 @@ export interface RegisterCredentials {
   email: string;
   password: string;
   role: UserRole;
+  fullName?: string;
 }
 
 export interface AuthContextType {

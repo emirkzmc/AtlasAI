@@ -24,9 +24,7 @@ import type {
 } from "../types/auth.types";
 import { features } from "../config/features";
 
-/**
- * Helper function to translate Firebase error codes to user-friendly Turkish messages.
- */
+
 function getAuthErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'code' in error) {
     switch (error.code) {
@@ -116,11 +114,13 @@ export async function registerWithEmail(
       uid: string;
       email: string;
       role: UserRole;
+      fullName?: string;
       createdAt: ReturnType<typeof serverTimestamp>;
     } = {
       uid: user.uid,
       email: credentials.email,
       role: credentials.role,
+      ...(credentials.fullName ? { fullName: credentials.fullName } : {}),
       createdAt: serverTimestamp(),
     };
 
@@ -132,6 +132,7 @@ export async function registerWithEmail(
       uid: user.uid,
       email: credentials.email,
       role: credentials.role,
+      fullName: credentials.fullName,
       createdAt: new Date(),
     };
 
@@ -176,6 +177,8 @@ export async function getUserFromFirestore(
       email: string;
       role: UserRole;
       createdAt: { toDate: () => Date } | null;
+      fullName?: string;
+      photoURL?: string;
     };
 
     return {
@@ -183,6 +186,8 @@ export async function getUserFromFirestore(
       email: data.email,
       role: data.role,
       createdAt: data.createdAt?.toDate() ?? new Date(),
+      fullName: data.fullName,
+      photoURL: data.photoURL,
     };
   } catch (error: unknown) {
     if (error instanceof Error) {

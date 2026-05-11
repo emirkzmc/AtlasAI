@@ -7,21 +7,13 @@ import FloatingLabel from '../../FloatingLabel'
 import DateInput from './DateInput'
 import RegisterTab from './RegisterTab'
 import { useAuth } from '../../../hooks/useAuth'
-import type { UserRole } from '../../../types/auth.types'
+import type { UserRole, FormFieldDef } from '../../../types/auth.types'
 import { features } from '../../../config/features'
 
-type Role = 'student' | 'teacher'
-
-type FieldDef = {
-  name: string
-  label: string
-  type: string
-}
-
 type RegisterFormProps = {
-  role: Role
-  fields: FieldDef[]
-  onRoleChange: (role: Role) => void
+  role: UserRole
+  fields: FormFieldDef[]
+  onRoleChange: (role: UserRole) => void
 }
 
 const fieldVariants = {
@@ -60,7 +52,8 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
     }
 
     try {
-      await register({ email, password, role: role as UserRole })
+      const fullName = formValues['fullName'] ?? ''
+      await register({ email, password, role: role as UserRole, fullName: fullName || undefined })
       toast.success('Hesabınız oluşturuldu! Doğrulama bağlantısı e-posta adresinize gönderildi.')
       navigate('/login')
     } catch (err: unknown) {

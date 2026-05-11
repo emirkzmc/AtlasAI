@@ -3,29 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import RegisterImage from '../../components/auth/register/RegisterImage'
 import RegisterForm from '../../components/auth/register/RegisterForm'
 import { features } from '../../config/features'
-
-type Role = 'student' | 'teacher'
-
-const studentFields = [
-  { name: 'fullName', label: 'Ad Soyad', type: 'text' },
-  { name: 'birthDate', label: 'Doğum Tarihi', type: 'date' },
-  { name: 'phone', label: 'Telefon numarası', type: 'tel' },
-  { name: 'email', label: 'E-posta', type: 'email' },
-  { name: 'password', label: 'Şifre', type: 'password' },
-]
-
-const teacherFields = [
-  { name: 'fullName', label: 'Ad Soyad', type: 'text' },
-  { name: 'phone', label: 'Telefon numarası', type: 'tel' },
-  { name: 'email', label: 'E-posta', type: 'email' },
-  { name: 'password', label: 'Şifre', type: 'password' },
-]
+import { STUDENT_REGISTER_FIELDS, TEACHER_REGISTER_FIELDS } from '../../constants/auth.constants'
+import type { UserRole } from '../../types/auth.types'
 
 function RegisterPage() {
-  const [role, setRole] = useState<Role>('student')
+  const [role, setRole] = useState<UserRole>('student')
 
   const isStudent = role === 'student'
-  const fields = isStudent ? studentFields : teacherFields
+  const fields = isStudent ? STUDENT_REGISTER_FIELDS : TEACHER_REGISTER_FIELDS
   const direction = isStudent ? 1 : -1
 
   return (

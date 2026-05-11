@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import type {
   AuthUser,
   AuthContextType,
@@ -13,8 +13,7 @@ import {
   subscribeToAuthState,
 } from "../services/auth.service";
 import type { JSX } from "react/jsx-runtime";
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from "./AuthContextDef";
 
 interface AuthProviderProps {
   children: ReactNode;
