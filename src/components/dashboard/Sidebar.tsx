@@ -99,7 +99,12 @@ export default function Sidebar({ activeId, setActiveId }: SidebarProps) {
       </div>
 
       <div className={`mt-auto pb-8 ${isOpen ? "px-8 flex justify-between items-center" : "flex flex-col items-center"}`}>
-        <div className={`flex ${isOpen ? "items-center gap-3" : "items-center"}`}>
+        <button
+          type="button"
+          onClick={() => setActiveId("profilim")}
+          className={`flex cursor-pointer rounded-lg text-left transition-colors hover:bg-[#F3F0EF] ${isOpen ? "w-full items-center gap-3 p-2" : "items-center p-2"}`}
+          aria-label="Profilim sayfasına git"
+        >
           {user?.photoURL ? (
             <img
               src={user.photoURL}
@@ -117,7 +122,7 @@ export default function Sidebar({ activeId, setActiveId }: SidebarProps) {
               <span className="text-[13px] text-[#A3A3A3]">{user?.email}</span>
             </div>
           )}
-        </div>
+        </button>
       </div>
     </motion.div>
   );

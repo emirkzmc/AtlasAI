@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import { AnimatePresence, motion } from 'framer-motion'
 import DateCalendarPicker from '../../DateCalendar'
@@ -8,9 +9,11 @@ type DateInputProps = {
   name: string
   label: string
   placeholder?: string
+  value?: string
+  onChange?: (name: string, value: string) => void
 }
 
-function DateInput({ name, label, placeholder }: DateInputProps) {
+function DateInput({ name, label, placeholder, value = '', onChange }: DateInputProps) {
   const [open, setOpen] = useState(false)
   const [date, setDate] = useState<Dayjs | null>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -27,13 +30,16 @@ function DateInput({ name, label, placeholder }: DateInputProps) {
   }, [])
 
   const handleDateChange = (newDate: Dayjs | null) => {
+    if (newDate?.isAfter(dayjs(), 'day')) return
+
     setDate(newDate)
+    onChange?.(name, newDate ? newDate.format('YYYY-MM-DD') : '')
     setOpen(false)
   }
 
   return (
     <div ref={wrapperRef} className="relative w-full">
-      <input type="hidden" name={name} value={date ? date.format('YYYY-MM-DD') : ''} />
+      <input type="hidden" name={name} value={value} />
 
       <button
         type="button"

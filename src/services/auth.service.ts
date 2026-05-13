@@ -61,6 +61,25 @@ function getAuthErrorMessage(error: unknown): string {
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+function calculateAge(birthDate?: string): number | undefined {
+  if (!birthDate) return undefined;
+
+  const [year, month, day] = birthDate.split("-").map(Number);
+  if (!year || !month || !day) return undefined;
+
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const hasBirthdayPassed =
+    today.getMonth() + 1 > month ||
+    (today.getMonth() + 1 === month && today.getDate() >= day);
+
+  if (!hasBirthdayPassed) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : undefined;
+}
+
 /**
  * Sign in with email/password and fetch the user's role from Firestore.
  * Blocks login if email is not verified.
@@ -126,12 +145,15 @@ export async function registerWithEmail(
       email: string;
       role: UserRole;
       fullName?: string;
+      birthDate?: string;
+      activityLog: string[];
       createdAt: ReturnType<typeof serverTimestamp>;
     } = {
       uid: user.uid,
       email: credentials.email,
       role: credentials.role,
       ...(credentials.fullName ? { fullName: credentials.fullName } : {}),
+      ...(credentials.birthDate ? { birthDate: credentials.birthDate } : {}),
       activityLog: [],
       createdAt: serverTimestamp(),
     };
@@ -145,6 +167,8 @@ export async function registerWithEmail(
       email: credentials.email,
       role: credentials.role,
       fullName: credentials.fullName,
+      birthDate: credentials.birthDate,
+      age: calculateAge(credentials.birthDate),
       createdAt: new Date(),
       activityLog: [],
     };
@@ -192,6 +216,7 @@ export async function getUserFromFirestore(
       createdAt: { toDate: () => Date } | null;
       fullName?: string;
       photoURL?: string;
+      birthDate?: string;
       activityLog?: string[];
     };
 
@@ -202,6 +227,8 @@ export async function getUserFromFirestore(
       createdAt: data.createdAt?.toDate() ?? new Date(),
       fullName: data.fullName,
       photoURL: data.photoURL,
+      birthDate: data.birthDate,
+      age: calculateAge(data.birthDate),
       activityLog: data.activityLog ?? [],
     };
   } catch (error: unknown) {

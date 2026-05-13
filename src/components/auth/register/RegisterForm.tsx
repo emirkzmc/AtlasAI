@@ -38,12 +38,17 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
     setFormValues((prev) => ({ ...prev, [name]: value }))
   }
 
+  function handleDateChange(name: string, value: string): void {
+    setFormValues((prev) => ({ ...prev, [name]: value }))
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()
     setSubmitting(true)
 
     const email = formValues['email'] ?? ''
     const password = formValues['password'] ?? ''
+    const birthDate = formValues['birthDate'] ?? ''
 
     if (!email || !password) {
       toast.error('E-posta ve şifre alanları zorunludur.')
@@ -53,7 +58,13 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
 
     try {
       const fullName = formValues['fullName'] ?? ''
-      await register({ email, password, role: role as UserRole, fullName: fullName || undefined })
+      await register({
+        email,
+        password,
+        role: role as UserRole,
+        fullName: fullName || undefined,
+        birthDate: birthDate || undefined,
+      })
       toast.success('Hesabınız oluşturuldu! Doğrulama bağlantısı e-posta adresinize gönderildi.')
       navigate('/login')
     } catch (err: unknown) {
@@ -101,6 +112,8 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
                       name={field.name}
                       label={field.label}
                       placeholder={field.label}
+                      value={formValues[field.name] ?? ''}
+                      onChange={handleDateChange}
                     />
                   ) : (
                     <FloatingLabel

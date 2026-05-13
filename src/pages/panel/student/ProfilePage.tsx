@@ -49,7 +49,7 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ProfileInfoCard label="Ad Soyad" value={displayName} />
         <ProfileInfoCard label="E-Posta" value={user?.email || "-"} />
-        <ProfileInfoCard label="Yaş" value={user?.age || "-"} />
+        <ProfileInfoCard label="Yaş" value={user?.age ?? "-"} />
         <ProfileInfoCard label="Üyelik Başlangıcı" value={joinedDate} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

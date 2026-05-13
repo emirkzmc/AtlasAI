@@ -14,7 +14,8 @@ export interface AuthUser {
   fullName?: string;
   photoURL?: string;
   activityLog?: string[];
-  age?: number | string;
+  birthDate?: string;
+  age?: number;
 }
 
 export interface LoginCredentials {
@@ -27,6 +28,7 @@ export interface RegisterCredentials {
   password: string;
   role: UserRole;
   fullName?: string;
+  birthDate?: string;
 }
 
 export interface AuthContextType {
