@@ -78,13 +78,30 @@ export default function ProfileDropdown() {
               <p className="text-[12px] text-[#999] m-0 truncate">{user?.email}</p>
             </div>
 
+            {/* Links */}
+            <button
+              onClick={() => {
+                navigate("/panel/student/profilim");
+                setOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-[14px] text-[#737373] hover:bg-[#F9F7F6] hover:text-[#5B4F4B] transition-colors cursor-pointer bg-transparent border-none text-left border-b border-[#F0F0F0]"
+              style={{ fontFamily: "inherit" }}
+            >
+              <img src="/icons/user-icon.svg" alt="Profile" className="w-[18px] h-[18px] opacity-70" />
+              Profilim
+            </button>
+
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 text-[14px] text-[#737373] hover:bg-[#F9F7F6] hover:text-[#5B4F4B] transition-colors cursor-pointer bg-transparent border-none text-left"
+              className="group w-full flex items-center gap-3 px-4 py-3 text-[14px] text-[#737373] hover:bg-[#f9f6f6] hover:text-[#df7b7b] transition-colors cursor-pointer bg-transparent border-none text-left"
               style={{ fontFamily: "inherit" }}
             >
-              <img src="/icons/log-out-icon.svg" alt="Logout" className="w-[18px] h-[18px] opacity-70" />
+              <img
+                src="/icons/log-out-icon.svg"
+                alt="Logout"
+                className="w-[18px] h-[18px] opacity-70 group-hover:opacity-100 transition-all duration-200 group-hover:filter-[invert(67%)_sepia(34%)_saturate(744%)_hue-rotate(313deg)_brightness(92%)_contrast(90%)]"
+              />
               Çıkış Yap
             </button>
           </motion.div>

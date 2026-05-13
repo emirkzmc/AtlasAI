@@ -13,6 +13,8 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
+  arrayUnion,
   serverTimestamp,
 } from "firebase/firestore";
 import { app } from "./firebase.config";
@@ -89,6 +91,15 @@ export async function loginWithEmail(
       throw new Error("Öğretmen işlemleri şu anda kullanılamaz.");
     }
 
+    // Update activity log for today
+    const today = new Date().toISOString().split("T")[0];
+    await updateDoc(doc(db, "users", user.uid), {
+      activityLog: arrayUnion(today)
+    });
+    
+    if (!authUser.activityLog) authUser.activityLog = [];
+    if (!authUser.activityLog.includes(today)) authUser.activityLog.push(today);
+
     return authUser;
   } catch (error: unknown) {
     const message = getAuthErrorMessage(error);
@@ -121,6 +132,7 @@ export async function registerWithEmail(
       email: credentials.email,
       role: credentials.role,
       ...(credentials.fullName ? { fullName: credentials.fullName } : {}),
+      activityLog: [],
       createdAt: serverTimestamp(),
     };
 
@@ -134,6 +146,7 @@ export async function registerWithEmail(
       role: credentials.role,
       fullName: credentials.fullName,
       createdAt: new Date(),
+      activityLog: [],
     };
 
     await signOut(auth);
@@ -179,6 +192,7 @@ export async function getUserFromFirestore(
       createdAt: { toDate: () => Date } | null;
       fullName?: string;
       photoURL?: string;
+      activityLog?: string[];
     };
 
     return {
@@ -188,6 +202,7 @@ export async function getUserFromFirestore(
       createdAt: data.createdAt?.toDate() ?? new Date(),
       fullName: data.fullName,
       photoURL: data.photoURL,
+      activityLog: data.activityLog ?? [],
     };
   } catch (error: unknown) {
     if (error instanceof Error) {

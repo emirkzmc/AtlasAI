@@ -13,6 +13,8 @@ export interface AuthUser {
   createdAt: Date;
   fullName?: string;
   photoURL?: string;
+  activityLog?: string[];
+  age?: number | string;
 }
 
 export interface LoginCredentials {

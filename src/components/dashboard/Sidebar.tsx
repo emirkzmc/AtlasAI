@@ -30,9 +30,7 @@ export default function Sidebar({ activeId, setActiveId }: SidebarProps) {
       className="h-screen bg-white flex flex-col shrink-0 relative"
       style={{ borderRight: "1px solid #E5E5E5" }}
     >
-      {/* Top Section */}
       <div className="flex flex-col flex-1">
-        {/* Logo and Toggle */}
         <div className={`flex items-center mt-8 mb-8 ${isOpen ? "px-8 justify-between" : "justify-center"}`}>
           {isOpen && <h1 className="text-3xl font-bold tracking-wide text-black">ADMIX</h1>}
           <button
@@ -43,7 +41,6 @@ export default function Sidebar({ activeId, setActiveId }: SidebarProps) {
           </button>
         </div>
 
-        {/* Menu Items */}
         <div className="flex flex-col gap-6">
           {SIDEBAR_MENU_DATA.map((section, idx) => (
             <div key={idx} className="flex flex-col">
@@ -101,7 +98,6 @@ export default function Sidebar({ activeId, setActiveId }: SidebarProps) {
         </div>
       </div>
 
-      {/* Bottom Section */}
       <div className={`mt-auto pb-8 ${isOpen ? "px-8 flex justify-between items-center" : "flex flex-col items-center"}`}>
         <div className={`flex ${isOpen ? "items-center gap-3" : "items-center"}`}>
           {user?.photoURL ? (

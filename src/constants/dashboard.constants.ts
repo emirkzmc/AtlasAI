@@ -6,7 +6,6 @@ export const SIDEBAR_MENU_DATA: MenuGroup[] = [
     items: [
       { name: "Genel Bakış", icon: "/icons/general-icon.svg", id: "genel-bakis" },
       { name: "Dokümanlarım", icon: "/icons/doc-icon.svg", id: "dokumanlarim" },
-      { name: "Profilim", icon: "/icons/user-icon.svg", id: "profilim" },
     ]
   },
   {

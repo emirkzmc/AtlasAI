@@ -7,6 +7,7 @@ import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { PublicRoute } from "./routes/PublicRoute";
 import { RoleRoute } from "./routes/RoleRoute";
 import { StudentDashboard } from "./pages/panel/student/Dashboard";
+import ProfilePage from "./pages/panel/student/ProfilePage";
 import { TeacherDashboard } from "./pages/panel/teacher/Dashboard";
 import { features } from "./config/features";
 import type { JSX } from "react";
@@ -26,7 +27,15 @@ function App(): JSX.Element {
         {/* Protected panel routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<RoleRoute allowedRole="student" />}>
-            <Route path="/panel/student" element={<StudentDashboard />} />
+            <Route path="/panel/student" element={<StudentDashboard />}>
+              <Route index element={<Navigate to="genel-bakis" replace />} />
+              <Route path="genel-bakis" element={<div>Genel Bakış Sayfası</div>} />
+              <Route path="dokumanlarim" element={<div>Dokümanlarım</div>} />
+              <Route path="performans" element={<div>Performans</div>} />
+              <Route path="yanlislarim" element={<div>Yanlışlarım</div>} />
+              <Route path="mentorluk" element={<div>Mentorluk</div>} />
+              <Route path="profilim" element={<ProfilePage />} />
+            </Route>
           </Route>
           {features.enableTeacherFeatures && (
             <Route element={<RoleRoute allowedRole="teacher" />}>
