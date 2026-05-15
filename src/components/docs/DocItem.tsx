@@ -1,4 +1,5 @@
 import React from 'react';
+import toast from 'react-hot-toast';
 import type { IDocument } from './types';
 
 interface DocItemProps {
@@ -17,6 +18,19 @@ const formatBytes = (bytes: number, decimals = 2) => {
 };
 
 const DocItem: React.FC<DocItemProps> = ({ document, onOpen, onDelete }) => {
+  const hasUrl = !!document.url;
+
+  const handleOpen = () => {
+    if (!hasUrl) {
+      toast('Dosya içeriği buluta yüklenmedi. Firebase Storage aktif olmadığı için bu doküman açılamıyor.', {
+        icon: 'ℹ️',
+        duration: 4000,
+      });
+      return;
+    }
+    onOpen(document.id);
+  };
+
   return (
     <div className="flex items-center justify-between p-4 bg-white border border-gray-100 shadow-sm rounded-xl hover:shadow-md transition-shadow">
       <div className="flex items-center gap-4 flex-1 min-w-0 pr-4">
@@ -29,21 +43,26 @@ const DocItem: React.FC<DocItemProps> = ({ document, onOpen, onDelete }) => {
           <h4 className="text-gray-900 font-medium text-sm truncate">{document.name}</h4>
           <p className="text-gray-500 text-xs mt-0.5">
             {formatBytes(document.size)} • {document.createdAt}
+            {!hasUrl && (
+              <span className="ml-2 text-amber-500">• Yalnızca kayıt</span>
+            )}
           </p>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button 
-          onClick={() => onOpen(document.id)}
-          className="cursor-pointer p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-          title="Aç"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-        </button>
-        <button 
+        {hasUrl && (
+          <button
+            onClick={handleOpen}
+            className="cursor-pointer p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            title="Aç"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </button>
+        )}
+        <button
           onClick={() => onDelete(document.id)}
           className="cursor-pointer p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           title="Sil"

@@ -9,21 +9,12 @@ import RegisterTab from './RegisterTab'
 import { useAuth } from '../../../hooks/useAuth'
 import type { UserRole, FormFieldDef } from '../../../types/auth.types'
 import { features } from '../../../config/features'
+import { authFieldVariants, authStaggerVariants } from '../../../constants/auth.animations'
 
 type RegisterFormProps = {
   role: UserRole
   fields: FormFieldDef[]
   onRoleChange: (role: UserRole) => void
-}
-
-const fieldVariants = {
-  hidden: { opacity: 0, y: 14 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
-}
-
-const staggerVariants = {
-  visible: { transition: { staggerChildren: 0.045, delayChildren: 0.12 } },
-  hidden: {},
 }
 
 function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
@@ -32,10 +23,12 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
 
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState<boolean>(false)
+  const [formError, setFormError] = useState<string>('')
 
   function handleChange(e: ChangeEvent<HTMLInputElement>): void {
     const { name, value } = e.target
     setFormValues((prev) => ({ ...prev, [name]: value }))
+    if (formError) setFormError('')
   }
 
   function handleDateChange(name: string, value: string): void {
@@ -44,6 +37,7 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()
+    setFormError('')
     setSubmitting(true)
 
     const email = formValues['email'] ?? ''
@@ -51,7 +45,7 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
     const birthDate = formValues['birthDate'] ?? ''
 
     if (!email || !password) {
-      toast.error('E-posta ve şifre alanları zorunludur.')
+      setFormError('E-posta ve şifre alanları zorunludur.')
       setSubmitting(false)
       return
     }
@@ -65,13 +59,17 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
         fullName: fullName || undefined,
         birthDate: birthDate || undefined,
       })
-      toast.success('Hesabınız oluşturuldu! Doğrulama bağlantısı e-posta adresinize gönderildi.')
-      navigate('/login')
+      toast.success('Hesabınız oluşturuldu! Doğrulama maili gönderildi.')
+      navigate('/email-dogrulama', { replace: true })
     } catch (err: unknown) {
       if (err instanceof Error) {
+        console.error('[RegisterForm] register error:', err)
+        setFormError(err.message)
         toast.error(err.message)
       } else {
-        toast.error('Kayıt sırasında bir hata oluştu.')
+        const msg = 'Kayıt sırasında bir hata oluştu.'
+        setFormError(msg)
+        toast.error(msg)
       }
     } finally {
       setSubmitting(false)
@@ -103,10 +101,10 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
               initial="hidden"
               animate="visible"
               exit="hidden"
-              variants={staggerVariants}
+              variants={authStaggerVariants}
             >
               {fields.map((field) => (
-                <motion.div key={field.name} variants={fieldVariants}>
+                <motion.div key={field.name} variants={authFieldVariants}>
                   {field.type === 'date' ? (
                     <DateInput
                       name={field.name}
@@ -127,13 +125,23 @@ function RegisterForm({ role, fields, onRoleChange }: RegisterFormProps) {
                 </motion.div>
               ))}
 
-              <motion.div variants={fieldVariants}>
+              {formError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-[13px] text-red-600 font-medium"
+                >
+                  {formError}
+                </motion.div>
+              )}
+
+              <motion.div variants={authFieldVariants}>
                 <Button type="submit" disabled={submitting}>
                   {submitting ? 'Kayıt yapılıyor...' : 'Hesap Oluşturun'}
                 </Button>
               </motion.div>
 
-              <motion.div variants={fieldVariants} className="w-full flex justify-center mt-1"> 
+              <motion.div variants={authFieldVariants} className="w-full flex justify-center mt-1"> 
                 <p className="m-0 text-sm text-[#7F6B67]">
                   Zaten hesabın var mı?{' '}
                   <Link to="/login" className="font-semibold text-[#5B4F4B] hover:underline">
