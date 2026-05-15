@@ -2,9 +2,6 @@ import { useContext } from "react";
 import { AuthContext } from "../context/AuthContextDef";
 import type { AuthContextType } from "../types/auth.types";
 
-/**
- * Access the auth context. Must be used within an AuthProvider.
- */
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
 
