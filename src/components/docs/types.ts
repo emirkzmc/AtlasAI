@@ -2,7 +2,9 @@ export interface IDocument {
   id: string;
   name: string;
   size: number;
-  url: string;
-  storagePath: string;
+  mimeType?: string;
+  url: string | null;
+  storagePath: string | null;
+  storageEnabled?: boolean;
   createdAt: string;
 }

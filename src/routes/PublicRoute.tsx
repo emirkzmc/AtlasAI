@@ -11,6 +11,10 @@ export function PublicRoute(): JSX.Element {
   }
 
   if (user) {
+    // Authenticated but email not yet verified → verification page
+    if (!user.emailVerified) {
+      return <Navigate to="/email-dogrulama" replace />;
+    }
     return <Navigate to={`/panel/${user.role}`} replace />;
   }
 

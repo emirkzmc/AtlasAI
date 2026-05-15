@@ -14,5 +14,10 @@ export function ProtectedRoute(): JSX.Element {
     return <Navigate to="/login" replace />;
   }
 
+  // Authenticated but email not verified → block dashboard access
+  if (!user.emailVerified) {
+    return <Navigate to="/email-dogrulama" replace />;
+  }
+
   return <Outlet />;
 }

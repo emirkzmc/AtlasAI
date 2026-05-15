@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
-
 import { SIDEBAR_MENU_DATA } from "../../constants/dashboard.constants";
+import {
+  getUserDisplayName,
+  getUserPhotoSrc,
+  getUserInitials,
+} from "../../utils/userDisplay";
 
-function getInitials(name?: string): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-}
+const SIDEBAR_OPEN = 280;
+const SIDEBAR_CLOSED = 88;
+const ITEM_HEIGHT = 48;
+const ICON_COL_WIDTH = 56;
+const SECTION_LABEL_HEIGHT = 36;
 
 interface SidebarProps {
   activeId: string;
@@ -20,75 +23,136 @@ export default function Sidebar({ activeId, setActiveId }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true);
   const { user } = useAuth();
 
-  const displayName = user?.fullName ?? user?.email ?? "Kullanıcı";
-  const initials = getInitials(user?.fullName ?? user?.email?.split("@")[0]);
+  const displayName = getUserDisplayName(user);
+  const photoSrc = getUserPhotoSrc(user);
+  const initials = getUserInitials(displayName);
+
+  function goToProfile() {
+    setActiveId("profilim");
+  }
 
   return (
     <motion.div
       initial={false}
-      animate={{ width: isOpen ? 280 : 88 }}
-      className="h-screen bg-white flex flex-col shrink-0 relative"
+      animate={{ width: isOpen ? SIDEBAR_OPEN : SIDEBAR_CLOSED }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className="h-screen bg-white flex flex-col shrink-0 relative overflow-hidden"
       style={{ borderRight: "1px solid #E5E5E5" }}
     >
-      <div className="flex flex-col flex-1">
-        <div className={`flex items-center mt-8 mb-8 ${isOpen ? "px-8 justify-between" : "justify-center"}`}>
-          {isOpen && <h1 className="text-3xl font-bold tracking-wide text-black">ADMIX</h1>}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="cursor-pointer p-1 rounded-lg hover:bg-gray-100 transition-colors"
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="h-[72px] shrink-0 mt-8 mb-8 flex items-center relative px-4">
+          <motion.h1
+            className="absolute left-8 text-3xl font-bold tracking-wide text-black whitespace-nowrap overflow-hidden text-ellipsis"
+            animate={{ opacity: isOpen ? 1 : 0 }}
+            transition={{ duration: 0.25 }}
+            style={{
+              visibility: isOpen ? "visible" : "hidden",
+              maxWidth: isOpen ? 180 : 0,
+            }}
           >
-            <img src={isOpen ? "/icons/sidebar-icon.svg" : "/icons/sidebar-close.svg"} alt="Toggle" className="w-9 h-9 opacity-70" />
+            ADMIX
+          </motion.h1>
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className={`cursor-pointer p-1 rounded-lg hover:bg-gray-100 transition-colors shrink-0 z-10 ${
+              isOpen ? "ml-auto mr-4" : "mx-auto"
+            }`}
+            aria-label={isOpen ? "Kenar çubuğunu daralt" : "Kenar çubuğunu genişlet"}
+          >
+            <img
+              src={isOpen ? "/icons/sidebar-icon.svg" : "/icons/sidebar-close.svg"}
+              alt=""
+              className="w-9 h-9 opacity-70"
+            />
           </button>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 overflow-y-auto overflow-x-hidden">
           {SIDEBAR_MENU_DATA.map((section, idx) => (
-            <div key={idx} className="flex flex-col">
-              {isOpen && (
-                <span className="px-8 text-[13px] font-medium text-[#717171] mb-3">
+            <div key={idx} className="flex flex-col shrink-0">
+              <div
+                className="shrink-0 flex items-end px-8 overflow-hidden"
+                style={{ height: SECTION_LABEL_HEIGHT }}
+              >
+                <span
+                  className="block text-[13px] font-medium text-[#717171] whitespace-nowrap overflow-hidden text-ellipsis w-full transition-opacity duration-[250ms]"
+                  style={{
+                    opacity: isOpen ? 1 : 0,
+                    visibility: isOpen ? "visible" : "hidden",
+                    maxWidth: isOpen ? "100%" : 0,
+                  }}
+                >
                   {section.group}
                 </span>
-              )}
+              </div>
+
               {section.items.map((item) => {
                 const isActive = activeId === item.id;
                 return (
-                  <div key={item.id} className="relative h-[48px] w-full">
+                  <div
+                    key={item.id}
+                    className="relative shrink-0 w-full"
+                    style={{ height: ITEM_HEIGHT }}
+                  >
                     <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setActiveId(item.id)}
-                      className={`border-r border-[#E5E5E5] group flex items-center cursor-pointer transition-all duration-300 h-[48px] ${isOpen
-                          ? "pl-[30px] pr-4 w-full relative"
-                          : "justify-start pl-[28px] absolute left-0 top-0 w-[88px] hover:w-[240px] hover:bg-[#F3F0EF] z-50 bg-white "
-                        } ${isActive
-                          ? "text-[#5B4F4B]"
-                          : "text-[#737373] hover:bg-[#F3F0EF]"
-                        }`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") setActiveId(item.id);
+                      }}
+                      className={`group flex items-center cursor-pointer transition-[width,background-color,box-shadow] duration-200 ${
+                        isOpen
+                          ? "relative w-full"
+                          : "absolute left-0 top-0 z-10 bg-white hover:z-50 hover:w-[240px] hover:bg-[#F3F0EF] hover:shadow-[2px_0_12px_rgba(0,0,0,0.06)]"
+                      } ${isActive ? "text-[#5B4F4B]" : "text-[#737373]"}`}
                       style={{
-                        borderLeft: isActive ? "4px solid #5B4F4B" : "4px solid transparent",
-                        backgroundColor: isActive && !isOpen ? "" : undefined
+                        height: ITEM_HEIGHT,
+                        width: isOpen ? "100%" : SIDEBAR_CLOSED,
+                        borderLeft: isActive
+                          ? "4px solid #5B4F4B"
+                          : "4px solid transparent",
+                        backgroundColor: isActive && isOpen ? "#F3F0EF" : undefined,
                       }}
                     >
-                      <div className="flex items-center justify-center shrink-0">
+                      <div
+                        className="flex items-center justify-center shrink-0"
+                        style={{ width: ICON_COL_WIDTH, height: ITEM_HEIGHT }}
+                      >
                         <img
                           src={item.icon}
-                          alt={item.name}
-                          className={`w-[24px] h-[24px] transition-all duration-200 ${isOpen ? "group-hover:rotate-10 group-hover:w-[24px] group-hover:h-[24px]" : ""
-                            } ${isActive ? "opacity-100" : "opacity-70"}`}
-                          style={isActive ? { filter: "brightness(0) saturate(100%) invert(31%) sepia(15%) saturate(545%) hue-rotate(338deg) brightness(95%) contrast(87%)" } : {}}
+                          alt=""
+                          className={`w-[24px] h-[24px] shrink-0 ${
+                            isActive ? "opacity-100" : "opacity-70"
+                          }`}
+                          style={
+                            isActive
+                              ? {
+                                  filter:
+                                    "brightness(0) saturate(100%) invert(31%) sepia(15%) saturate(545%) hue-rotate(338deg) brightness(95%) contrast(87%)",
+                                }
+                              : undefined
+                          }
                         />
                       </div>
 
-                      {isOpen && (
-                        <span className={`ml-4 text-[15px] transition-colors ${isActive ? "font-medium text-[#5B4F4B]" : "font-medium text-[#737373] group-hover:text-[#5B4F4B] "}`}>
-                          {item.name}
-                        </span>
-                      )}
-
-                      {!isOpen && (
-                        <span className={`ml-4 text-[15px] whitespace-nowrap overflow-hidden transition-all duration-300 ${isActive ? "font-medium text-[#5B4F4B]" : "font-medium text-[#737373] group-hover:text-[#5B4F4B]"
-                          } opacity-0 w-0 group-hover:opacity-100 group-hover:w-auto`}>
-                          {item.name}
-                        </span>
-                      )}
+                      <span
+                        className={`min-w-0 text-[15px] font-medium pr-3 whitespace-nowrap overflow-hidden text-ellipsis transition-[opacity,max-width] duration-[250ms] ${
+                          isActive ? "text-[#5B4F4B]" : "text-[#737373]"
+                        } ${
+                          isOpen
+                            ? ""
+                            : "opacity-0 max-w-0 invisible group-hover:opacity-100 group-hover:max-w-[160px] group-hover:visible"
+                        }`}
+                        style={
+                          isOpen
+                            ? { opacity: 1, visibility: "visible", maxWidth: 200 }
+                            : undefined
+                        }
+                      >
+                        {item.name}
+                      </span>
                     </div>
                   </div>
                 );
@@ -98,30 +162,51 @@ export default function Sidebar({ activeId, setActiveId }: SidebarProps) {
         </div>
       </div>
 
-      <div className={`mt-auto pb-8 ${isOpen ? "px-8 flex justify-between items-center" : "flex flex-col items-center"}`}>
+      <div
+        className={`mt-auto pb-6 shrink-0 ${
+          isOpen ? "px-6" : "px-0 flex justify-center"
+        }`}
+      >
         <button
           type="button"
-          onClick={() => setActiveId("profilim")}
-          className={`flex cursor-pointer rounded-lg text-left transition-colors hover:bg-[#F3F0EF] ${isOpen ? "w-full items-center gap-3 p-2" : "items-center p-2"}`}
+          onClick={goToProfile}
+          className={`flex cursor-pointer rounded-xl transition-colors hover:bg-[#F3F0EF] text-left border-0 bg-transparent w-full ${
+            isOpen
+              ? "flex-col items-start gap-2.5 p-3 -mt-1"
+              : "flex-col items-center justify-center p-2"
+          }`}
           aria-label="Profilim sayfasına git"
         >
-          {user?.photoURL ? (
+          {photoSrc ? (
             <img
-              src={user.photoURL}
-              alt="Profile"
+              src={photoSrc}
+              alt=""
               className="w-[42px] h-[42px] rounded-full object-cover shrink-0"
             />
           ) : (
             <div className="w-[42px] h-[42px] rounded-full bg-[#5B4F4B] flex items-center justify-center shrink-0">
-              <span className="text-white text-[15px] font-semibold select-none">{initials}</span>
+              <span className="text-white text-[15px] font-semibold select-none">
+                {initials}
+              </span>
             </div>
           )}
-          {isOpen && (
-            <div className="flex flex-col">
-              <span className="text-[15px] font-semibold text-[#1a1a1a]">{displayName}</span>
-              <span className="text-[13px] text-[#A3A3A3]">{user?.email}</span>
-            </div>
-          )}
+
+          <motion.div
+            className="flex flex-col items-start w-full min-w-0 text-left overflow-hidden"
+            animate={{ opacity: isOpen ? 1 : 0 }}
+            transition={{ duration: 0.25 }}
+            style={{
+              visibility: isOpen ? "visible" : "hidden",
+              maxHeight: isOpen ? 48 : 0,
+            }}
+          >
+            <span className="text-[15px] font-semibold text-[#1a1a1a] w-full truncate text-left">
+              {displayName}
+            </span>
+            <span className="text-[13px] text-[#A3A3A3] w-full truncate text-left">
+              {user?.email ?? ""}
+            </span>
+          </motion.div>
         </button>
       </div>
     </motion.div>
