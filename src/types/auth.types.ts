@@ -11,8 +11,13 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   createdAt: Date;
+  emailVerified?: boolean;
+  firstName?: string;
+  lastName?: string;
   fullName?: string;
+  displayName?: string;
   photoURL?: string;
+  photoDataUrl?: string;
   activityLog?: string[];
   birthDate?: string;
   age?: number;
@@ -37,4 +42,6 @@ export interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  /** Reload Firebase Auth user + re-fetch Firestore doc, updating the context user. */
+  refreshUser: () => Promise<void>;
 }

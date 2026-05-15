@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import Logo from '../../Logo'
+import { authImageFade, authImageScale } from '../../../constants/auth.animations'
 
 type RegisterImageProps = {
   role: 'student' | 'teacher'
@@ -8,7 +9,7 @@ type RegisterImageProps = {
 
 const imageVariants = {
   initial: (dir: number) => ({ x: dir * 60, opacity: 0 }),
-  animate: { x: 0, opacity: 1, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const } },
+  animate: { x: 0, opacity: 1, transition: authImageFade },
   exit: (dir: number) => ({ x: dir * -60, opacity: 0, transition: { duration: 0.35, ease: 'easeIn' as const } }),
 }
 
@@ -32,7 +33,7 @@ function RegisterImage({ role, direction }: RegisterImageProps) {
           className="h-full w-full object-cover"
           initial={{ scale: 1.08 }}
           animate={{ scale: 1 }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }}
+          transition={authImageScale}
         />
         <div className={`absolute bottom-10 z-10 ${isStudent ? 'left-10' : 'right-10'}`}>
           <Logo />

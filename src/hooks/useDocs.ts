@@ -5,7 +5,11 @@ import {
   fetchDocuments,
   deleteDocument,
 } from "../services/docs.service";
+import { features } from "../config/features";
 import type { IDocument } from "../components/docs/types";
+
+const STORAGE_DISABLED_MESSAGE =
+  "Doküman kaydı oluşturuldu. Firebase Storage aktif olmadığı için dosya içeriği şu an buluta yüklenmedi.";
 
 interface UseDocsReturn {
   documents: IDocument[];
@@ -13,9 +17,10 @@ interface UseDocsReturn {
   isUploading: boolean;
   uploadProgress: number;
   error: string | null;
+  uploadInfo: string | null;
   upload: (files: File[]) => Promise<void>;
-  remove: (id: string, storagePath: string) => Promise<void>;
-  open: (url: string) => void;
+  remove: (id: string, storagePath: string | null) => Promise<void>;
+  open: (url: string | null) => void;
 }
 
 export function useDocs(): UseDocsReturn {
@@ -25,6 +30,7 @@ export function useDocs(): UseDocsReturn {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [uploadInfo, setUploadInfo] = useState<string | null>(null);
 
   // Fetch on mount / user change
   useEffect(() => {
@@ -42,19 +48,28 @@ export function useDocs(): UseDocsReturn {
       if (!user?.uid) return;
       setIsUploading(true);
       setError(null);
+      setUploadInfo(null);
 
       try {
-        // Upload sequentially so progress is meaningful
         const uploaded: IDocument[] = [];
         for (const file of files) {
-          const doc = await uploadDocument(user.uid, file, (pct) => {
+          const uploadedDoc = await uploadDocument(user.uid, file, (pct) => {
             setUploadProgress(pct);
           });
-          uploaded.push(doc);
+          uploaded.push(uploadedDoc);
         }
         setDocuments((prev) => [...uploaded, ...prev]);
-      } catch {
-        setError("Dosya yüklenirken bir hata oluştu. Lütfen tekrar deneyin.");
+
+        if (!features.enableStorage) {
+          setUploadInfo(STORAGE_DISABLED_MESSAGE);
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Dosya yüklenirken bir hata oluştu. Lütfen tekrar deneyin.";
+        setError(message);
+        console.error("[useDocs] upload failed:", err);
       } finally {
         setIsUploading(false);
         setUploadProgress(0);
@@ -64,7 +79,7 @@ export function useDocs(): UseDocsReturn {
   );
 
   const remove = useCallback(
-    async (id: string, storagePath: string) => {
+    async (id: string, storagePath: string | null) => {
       if (!user?.uid) return;
       setError(null);
 
@@ -82,7 +97,8 @@ export function useDocs(): UseDocsReturn {
     [user?.uid]
   );
 
-  const open = useCallback((url: string) => {
+  const open = useCallback((url: string | null) => {
+    if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
   }, []);
 
@@ -92,6 +108,7 @@ export function useDocs(): UseDocsReturn {
     isUploading,
     uploadProgress,
     error,
+    uploadInfo,
     upload,
     remove,
     open,

@@ -1,5 +1,9 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "../../../hooks/useAuth";
+import { getActivityLogs } from "../../../services/dashboard.service";
 import ActivityHeatmap from "../../../components/dashboard/profile/ActivityHeatmap";
+import ProfileAvatar from "../../../components/dashboard/profile/ProfileAvatar";
+import { getUserDisplayName } from "../../../utils/userDisplay";
 
 function ProfileInfoCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -10,33 +14,56 @@ function ProfileInfoCard({ label, value }: { label: string; value: string | numb
   );
 }
 
+function calcAge(birthDate?: string): number | undefined {
+  if (!birthDate) return undefined;
+  const [year, month, day] = birthDate.split("-").map(Number);
+  if (!year || !month || !day) return undefined;
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const hasBirthdayPassed =
+    today.getMonth() + 1 > month ||
+    (today.getMonth() + 1 === month && today.getDate() >= day);
+  if (!hasBirthdayPassed) age -= 1;
+  return age >= 0 ? age : undefined;
+}
+
 export default function ProfilePage() {
   const { user } = useAuth();
-  
-  const displayName = user?.fullName || user?.email || "Kullanıcı";
-  
-  // Format creation date e.g., "Eylül 2024"
-  const joinedDate = user?.createdAt 
+  const [activityData, setActivityData] = useState<Record<string, number>>({});
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [photoError, setPhotoError] = useState("");
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    setActivityLoading(true);
+    getActivityLogs(user.uid, 64)
+      .then(setActivityData)
+      .catch((err) => {
+        console.error("[ProfilePage] activity logs error:", err);
+        setActivityData({});
+      })
+      .finally(() => setActivityLoading(false));
+  }, [user?.uid]);
+
+  const displayName = getUserDisplayName(user);
+  const age = user?.age ?? calcAge(user?.birthDate);
+  const ageDisplay = age !== undefined ? String(age) : "--";
+  const joinedDate = user?.createdAt
     ? new Intl.DateTimeFormat("tr-TR", { month: "long", year: "numeric" }).format(user.createdAt)
     : "Bilinmiyor";
 
   return (
     <div className="flex flex-col gap-8 max-w-[1000px] mx-auto pb-10 w-full">
-      
-      <div className="flex items-center gap-8">
-        <div className="w-[120px] h-[120px] rounded-full overflow-hidden shrink-0 border-[3px] border-[#E8E8E8] shadow-sm bg-[#5B4F4B] flex items-center justify-center">
-          {user?.photoURL ? (
-            <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-white text-[42px] font-semibold select-none">
-              {displayName.charAt(0).toUpperCase()}
-            </span>
+      <div className="flex items-start gap-8">
+        <div className="flex flex-col items-start gap-2 shrink-0">
+          <ProfileAvatar size={120} editable onError={setPhotoError} />
+          {photoError && (
+            <p className="text-[13px] text-red-600 max-w-[220px] m-0">{photoError}</p>
           )}
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col min-w-0">
           <h2 className="text-[32px] font-semibold text-[#1a1a1a] mb-1">{displayName}</h2>
           <p className="text-[16px] text-[#737373] mb-5">Üye oldu: {joinedDate}</p>
-          
           <div className="flex flex-wrap items-center gap-3">
             <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Başarı</span>
             <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Doküman</span>
@@ -49,9 +76,10 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ProfileInfoCard label="Ad Soyad" value={displayName} />
         <ProfileInfoCard label="E-Posta" value={user?.email || "-"} />
-        <ProfileInfoCard label="Yaş" value={user?.age ?? "-"} />
+        <ProfileInfoCard label="Yaş" value={ageDisplay} />
         <ProfileInfoCard label="Üyelik Başlangıcı" value={joinedDate} />
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.06)] min-h-[260px] flex flex-col">
           <h3 className="text-[13px] font-semibold text-[#737373] uppercase tracking-wide mb-4">
@@ -61,10 +89,8 @@ export default function ProfilePage() {
             Grafik verisi henüz yok
           </div>
         </div>
-        
-        <ActivityHeatmap activityLog={user?.activityLog || []} days={64} />
+        <ActivityHeatmap activityData={activityData} loading={activityLoading} days={64} />
       </div>
-
     </div>
   );
 }

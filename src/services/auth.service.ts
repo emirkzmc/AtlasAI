@@ -2,8 +2,10 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  updateProfile,
   signOut,
   sendEmailVerification,
+  sendPasswordResetEmail,
   onAuthStateChanged,
   type User,
   type Unsubscribe,
@@ -25,41 +27,55 @@ import type {
   UserRole,
 } from "../types/auth.types";
 import { features } from "../config/features";
+import {
+  ensureTodayActivityAndStreak,
+  incrementLoginCount,
+} from "./dashboard.service";
 
-
-function getAuthErrorMessage(error: unknown): string {
-  if (error && typeof error === 'object' && 'code' in error) {
-    switch (error.code) {
-      case 'auth/email-already-in-use':
-        return 'Bu e-posta adresi ile zaten bir hesap bulunuyor.';
-      case 'auth/invalid-email':
-        return 'Geçersiz bir e-posta adresi girdiniz.';
-      case 'auth/weak-password':
-        return 'Şifreniz çok zayıf. Lütfen daha güçlü bir şifre belirleyin (en az 6 karakter).';
-      case 'auth/user-not-found':
-      case 'auth/wrong-password':
-      case 'auth/invalid-credential':
-        return 'E-posta adresiniz veya şifreniz hatalı.';
-      case 'auth/too-many-requests':
-        return 'Çok fazla başarısız deneme yaptınız. Lütfen daha sonra tekrar deneyin.';
-      case 'auth/network-request-failed':
-        return 'Ağ bağlantısı hatası. Lütfen internet bağlantınızı kontrol edin.';
-      case 'auth/operation-not-allowed':
-        return 'Bu giriş yöntemi şu anda devre dışı bırakılmış.';
+export function getAuthErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "code" in error) {
+    switch ((error as { code: string }).code) {
+      case "auth/email-already-in-use":
+        return "Bu e-posta adresi ile zaten bir hesap bulunuyor.";
+      case "auth/invalid-email":
+        return "Geçersiz bir e-posta adresi girdiniz.";
+      case "auth/weak-password":
+        return "Şifreniz çok zayıf. Lütfen daha güçlü bir şifre belirleyin (en az 6 karakter).";
+      case "auth/user-not-found":
+      case "auth/wrong-password":
+      case "auth/invalid-credential":
+        return "E-posta adresiniz veya şifreniz hatalı.";
+      case "auth/too-many-requests":
+        return "Çok fazla başarısız deneme yaptınız. Lütfen daha sonra tekrar deneyin.";
+      case "auth/network-request-failed":
+        return "Ağ bağlantısı hatası. Lütfen internet bağlantınızı kontrol edin.";
+      case "auth/operation-not-allowed":
+        return "Bu giriş yöntemi şu anda devre dışı bırakılmış.";
+      case "auth/missing-email":
+        return "Lütfen bir e-posta adresi giriniz.";
     }
   }
-  
+
   if (error instanceof Error) {
-    // If it's a generic Firebase error message, we might still want to return it,
-    // but without the "Firebase: " prefix if possible, though custom errors from our code are fine.
     return error.message;
   }
-  
-  return 'Beklenmeyen bir hata oluştu.';
+
+  return "Beklenmeyen bir hata oluştu.";
 }
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+/**
+ * Splits a full name string into firstName and lastName.
+ * firstName = first word, lastName = remaining words.
+ */
+function splitName(fullName?: string): { firstName?: string; lastName?: string } {
+  if (!fullName?.trim()) return {};
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0] };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
 
 function calculateAge(birthDate?: string): number | undefined {
   if (!birthDate) return undefined;
@@ -83,10 +99,13 @@ function calculateAge(birthDate?: string): number | undefined {
 /**
  * Sign in with email/password and fetch the user's role from Firestore.
  * Blocks login if email is not verified.
+ * Auto-creates user document if missing.
  */
 export async function loginWithEmail(
   credentials: LoginCredentials
 ): Promise<AuthUser> {
+  let firebaseUserUid: string | null = null;
+
   try {
     const { user } = await signInWithEmailAndPassword(
       auth,
@@ -94,15 +113,45 @@ export async function loginWithEmail(
       credentials.password
     );
 
+    firebaseUserUid = user.uid;
+
     if (!user.emailVerified) {
       await signOut(auth);
       throw new Error("Lütfen önce e-posta adresinizi doğrulayın.");
     }
 
-    const authUser = await getUserFromFirestore(user.uid);
+    let authUser = await getUserFromFirestore(user.uid);
 
     if (!authUser) {
-      throw new Error("Kullanıcı verisi bulunamadı.");
+      // User document missing - auto-create from Firebase Auth data
+      console.error(
+        `[loginWithEmail] User document missing for uid: ${user.uid}. Auto-creating...`
+      );
+      const email = user.email ?? credentials.email;
+      const newUserData: {
+        uid: string;
+        email: string;
+        role: UserRole;
+        fullName?: string;
+        activityLog: string[];
+        createdAt: ReturnType<typeof serverTimestamp>;
+      } = {
+        uid: user.uid,
+        email,
+        role: "student",
+        activityLog: [],
+        createdAt: serverTimestamp(),
+        ...(user.displayName ? { fullName: user.displayName } : {}),
+      };
+      await setDoc(doc(db, "users", user.uid), newUserData);
+      authUser = {
+        uid: user.uid,
+        email,
+        role: "student",
+        createdAt: new Date(),
+        fullName: user.displayName ?? undefined,
+        activityLog: [],
+      };
     }
 
     if (authUser.role === "teacher" && !features.enableTeacherFeatures) {
@@ -110,19 +159,45 @@ export async function loginWithEmail(
       throw new Error("Öğretmen işlemleri şu anda kullanılamaz.");
     }
 
-    // Update activity log for today
+    // Update backward-compat activityLog array, streak, and login count
     const today = new Date().toISOString().split("T")[0];
-    await updateDoc(doc(db, "users", user.uid), {
-      activityLog: arrayUnion(today)
-    });
-    
+    try {
+      await updateDoc(doc(db, "users", user.uid), {
+        activityLog: arrayUnion(today),
+      });
+      await ensureTodayActivityAndStreak(user.uid);
+      await incrementLoginCount(user.uid);
+    } catch (activityError) {
+      // Non-blocking: don't fail login if activity update fails
+      console.error(
+        "[loginWithEmail] Activity/streak update failed (non-blocking):",
+        activityError
+      );
+    }
+
     if (!authUser.activityLog) authUser.activityLog = [];
     if (!authUser.activityLog.includes(today)) authUser.activityLog.push(today);
 
-    return authUser;
+    return { ...authUser, emailVerified: true };
   } catch (error: unknown) {
+    // Ensure user is signed out if login fails mid-way
+    if (firebaseUserUid) {
+      const isOurCustomError =
+        error instanceof Error &&
+        (error.message === "Lütfen önce e-posta adresinizi doğrulayın." ||
+          error.message === "Öğretmen işlemleri şu anda kullanılamaz.");
+      if (!isOurCustomError) {
+        try {
+          await signOut(auth);
+        } catch {
+          // ignore
+        }
+      }
+    }
+
     const message = getAuthErrorMessage(error);
-    throw new Error(message, { cause: error });
+    console.error("[loginWithEmail] Login error:", error);
+    throw new Error(message);
   }
 }
 
@@ -140,45 +215,53 @@ export async function registerWithEmail(
       credentials.password
     );
 
-    const userData: {
-      uid: string;
-      email: string;
-      role: UserRole;
-      fullName?: string;
-      birthDate?: string;
-      activityLog: string[];
-      createdAt: ReturnType<typeof serverTimestamp>;
-    } = {
+    const { firstName, lastName } = splitName(credentials.fullName);
+    const displayNameValue = credentials.fullName?.trim() ?? "";
+
+    const userData: Record<string, unknown> = {
       uid: user.uid,
       email: credentials.email,
       role: credentials.role,
-      ...(credentials.fullName ? { fullName: credentials.fullName } : {}),
-      ...(credentials.birthDate ? { birthDate: credentials.birthDate } : {}),
+      displayName: displayNameValue,
       activityLog: [],
       createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
+    if (credentials.fullName) userData.fullName = credentials.fullName;
+    if (firstName) userData.firstName = firstName;
+    if (lastName) userData.lastName = lastName;
+    if (credentials.birthDate) userData.birthDate = credentials.birthDate;
 
     await setDoc(doc(db, "users", user.uid), userData);
 
+    // Set Firebase Auth displayName so currentUser.displayName is populated
+    if (credentials.fullName) {
+      await updateProfile(user, { displayName: credentials.fullName });
+    }
+
     await sendEmailVerification(user);
+    // Keep the user signed in so the email verification page can call
+    // currentUser.reload() and sendEmailVerification() without re-auth.
 
     const authUser: AuthUser = {
       uid: user.uid,
       email: credentials.email,
       role: credentials.role,
       fullName: credentials.fullName,
+      firstName,
+      lastName,
       birthDate: credentials.birthDate,
       age: calculateAge(credentials.birthDate),
       createdAt: new Date(),
+      emailVerified: false,
       activityLog: [],
     };
-
-    await signOut(auth);
 
     return authUser;
   } catch (error: unknown) {
     const message = getAuthErrorMessage(error);
-    throw new Error(message, { cause: error });
+    console.error("[registerWithEmail] Registration error:", error);
+    throw new Error(message);
   }
 }
 
@@ -189,10 +272,11 @@ export async function logoutUser(): Promise<void> {
   try {
     await signOut(auth);
   } catch (error: unknown) {
+    console.error("[logoutUser] Sign-out error:", error);
     if (error instanceof Error) {
-      throw new Error(error.message, { cause: error });
+      throw new Error(error.message);
     }
-    throw new Error("Çıkış sırasında beklenmeyen bir hata oluştu.", { cause: error });
+    throw new Error("Çıkış sırasında beklenmeyen bir hata oluştu.");
   }
 }
 
@@ -214,8 +298,12 @@ export async function getUserFromFirestore(
       email: string;
       role: UserRole;
       createdAt: { toDate: () => Date } | null;
+      firstName?: string;
+      lastName?: string;
       fullName?: string;
+      displayName?: string;
       photoURL?: string;
+      photoDataUrl?: string;
       birthDate?: string;
       activityLog?: string[];
     };
@@ -225,17 +313,22 @@ export async function getUserFromFirestore(
       email: data.email,
       role: data.role,
       createdAt: data.createdAt?.toDate() ?? new Date(),
+      firstName: data.firstName,
+      lastName: data.lastName,
       fullName: data.fullName,
+      displayName: data.displayName,
       photoURL: data.photoURL,
+      photoDataUrl: data.photoDataUrl,
       birthDate: data.birthDate,
       age: calculateAge(data.birthDate),
       activityLog: data.activityLog ?? [],
     };
   } catch (error: unknown) {
+    console.error("[getUserFromFirestore] Error fetching user document:", error);
     if (error instanceof Error) {
-      throw new Error(error.message, { cause: error });
+      throw new Error(error.message);
     }
-    throw new Error("Kullanıcı verisi alınırken hata oluştu.", { cause: error });
+    throw new Error("Kullanıcı verisi alınırken hata oluştu.");
   }
 }
 
@@ -258,7 +351,21 @@ export async function resendVerificationEmail(
     await signOut(auth);
   } catch (error: unknown) {
     const message = getAuthErrorMessage(error);
-    throw new Error(message, { cause: error });
+    console.error("[resendVerificationEmail] Error:", error);
+    throw new Error(message);
+  }
+}
+
+/**
+ * Send a password reset email to the given address.
+ */
+export async function resetPassword(email: string): Promise<void> {
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (error: unknown) {
+    const message = getAuthErrorMessage(error);
+    console.error("[resetPassword] Error:", error);
+    throw new Error(message);
   }
 }
 

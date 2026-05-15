@@ -3,14 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
-
-/** Generate initials from a name (max 2 chars) */
-function getInitials(name?: string): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-}
+import {
+  getUserDisplayName,
+  getUserPhotoSrc,
+  getUserInitials,
+} from "../../utils/userDisplay";
 
 export default function ProfileDropdown() {
   const { user, logout } = useAuth();
@@ -18,8 +15,9 @@ export default function ProfileDropdown() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const displayName = user?.fullName ?? user?.email ?? "Kullanıcı";
-  const initials = getInitials(user?.fullName ?? user?.email?.split("@")[0]);
+  const displayName = getUserDisplayName(user);
+  const photoSrc = getUserPhotoSrc(user);
+  const initials = getUserInitials(displayName);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -49,9 +47,9 @@ export default function ProfileDropdown() {
         onClick={() => setOpen((prev) => !prev)}
         className="cursor-pointer w-[42px] h-[42px] rounded-full overflow-hidden border-2 border-transparent hover:border-[#5B4F4B]/30 transition-all duration-200 p-0 bg-transparent flex items-center justify-center"
       >
-        {user?.photoURL ? (
+        {photoSrc ? (
           <img
-            src={user.photoURL}
+            src={photoSrc}
             alt="Profile"
             className="w-full h-full rounded-full object-cover"
           />
