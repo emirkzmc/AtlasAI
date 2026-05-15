@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../hooks/useAuth";
-import { getActivityLogs } from "../../../services/dashboard.service";
+import { getActivityLogs, getTotalDocuments } from "../../../services/dashboard.service";
 import ActivityHeatmap from "../../../components/dashboard/profile/ActivityHeatmap";
 import ProfileAvatar from "../../../components/dashboard/profile/ProfileAvatar";
 import { getUserDisplayName } from "../../../utils/userDisplay";
@@ -31,6 +31,8 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const [activityData, setActivityData] = useState<Record<string, number>>({});
   const [activityLoading, setActivityLoading] = useState(true);
+  const [totalDocuments, setTotalDocuments] = useState(0);
+  const [totalDocumentsLoading, setTotalDocumentsLoading] = useState(true);
   const [photoError, setPhotoError] = useState("");
 
   useEffect(() => {
@@ -45,20 +47,50 @@ export default function ProfilePage() {
       .finally(() => setActivityLoading(false));
   }, [user?.uid]);
 
+  useEffect(() => {
+    if (!user?.uid) {
+      setTotalDocuments(0);
+      setTotalDocumentsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setTotalDocumentsLoading(true);
+
+    getTotalDocuments(user.uid)
+      .then((count) => {
+        if (!cancelled) setTotalDocuments(count);
+      })
+      .catch((err) => {
+        console.error("[ProfilePage] total documents error:", err);
+        if (!cancelled) setTotalDocuments(0);
+      })
+      .finally(() => {
+        if (!cancelled) setTotalDocumentsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
   const displayName = getUserDisplayName(user);
   const age = user?.age ?? calcAge(user?.birthDate);
   const ageDisplay = age !== undefined ? String(age) : "--";
   const joinedDate = user?.createdAt
     ? new Intl.DateTimeFormat("tr-TR", { month: "long", year: "numeric" }).format(user.createdAt)
     : "Bilinmiyor";
+  const totalDocumentsText = totalDocumentsLoading
+    ? "-- Toplam Doküman"
+    : `Toplam Doküman: ${totalDocuments}`;
 
   return (
-    <div className="flex flex-col gap-8 max-w-[1000px] mx-auto pb-10 w-full">
+    <div className="flex flex-col gap-8 max-w-250 mx-auto pb-10 w-full">
       <div className="flex items-start gap-8">
         <div className="flex flex-col items-start gap-2 shrink-0">
           <ProfileAvatar size={120} editable onError={setPhotoError} />
           {photoError && (
-            <p className="text-[13px] text-red-600 max-w-[220px] m-0">{photoError}</p>
+            <p className="text-[13px] text-red-600 max-w-55 m-0">{photoError}</p>
           )}
         </div>
         <div className="flex flex-col min-w-0">
@@ -66,7 +98,7 @@ export default function ProfilePage() {
           <p className="text-[16px] text-[#737373] mb-5">Üye oldu: {joinedDate}</p>
           <div className="flex flex-wrap items-center gap-3">
             <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Başarı</span>
-            <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Doküman</span>
+            <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">{totalDocumentsText}</span>
             <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">🔥 -- günlük seri</span>
             <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Soru</span>
           </div>
@@ -81,7 +113,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.06)] min-h-[260px] flex flex-col">
+        <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.06)] min-h-65 flex flex-col">
           <h3 className="text-[13px] font-semibold text-[#737373] uppercase tracking-wide mb-4">
             Akademik Genel Bakış
           </h3>

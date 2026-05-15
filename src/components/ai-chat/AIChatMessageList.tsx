@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { AiChatMessage } from "../../types/aiChat.types";
 import TypewriterText from "./TypewriterText";
 import LoadingDots from "./LoadingDots";
@@ -8,6 +8,7 @@ type AIChatMessageListProps = {
   streamingContent: string;
   isSending: boolean;
   userFirstName: string;
+  centeredComposer?: ReactNode;
 };
 
 export default function AIChatMessageList({
@@ -15,6 +16,7 @@ export default function AIChatMessageList({
   streamingContent,
   isSending,
   userFirstName,
+  centeredComposer,
 }: AIChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const isEmpty = messages.length === 0 && !streamingContent && !isSending;
@@ -25,18 +27,23 @@ export default function AIChatMessageList({
 
   if (isEmpty) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-6 pb-32">
-        <div className="flex items-center gap-2 text-[#1a1a1a] mb-2">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect width="16" height="16" x="4" y="4" rx="2" />
-            <rect width="6" height="6" x="9" y="9" rx="1" />
-            <path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2" />
-          </svg>
-          <span className="text-[18px] font-medium">Merhaba, {userFirstName}</span>
+      <div className="flex-1 flex items-center justify-center px-6 md:px-10 pb-8">
+        <div className="w-full max-w-180 flex flex-col items-stretch gap-5">
+          <div className="text-left">
+            <div className="flex items-center justify-start gap-2 text-[#1a1a1a] mb-1">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect width="16" height="16" x="4" y="4" rx="2" />
+                <rect width="6" height="6" x="9" y="9" rx="1" />
+                <path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2" />
+              </svg>
+              <span className="text-[32px] font-medium">Merhaba, {userFirstName}</span>
+            </div>
+            <h2 className="text-[42px] text-[#1a1a1a] tracking-tight m-0">
+              Başlayalım mı?
+            </h2>
+          </div>
+          {centeredComposer}
         </div>
-        <h2 className="text-[42px] font-bold text-[#1a1a1a] tracking-tight m-0">
-          Başlayalım mı ?
-        </h2>
       </div>
     );
   }
@@ -54,7 +61,7 @@ export default function AIChatMessageList({
                 {msg.attachments.map((a, i) => (
                   <span
                     key={i}
-                    className="max-w-[180px] truncate text-[11px] px-2 py-0.5 rounded-full bg-white text-[#5B4F4B] border border-[#D4C4C4] shadow-sm"
+                    className="max-w-45 truncate text-[11px] px-2 py-0.5 rounded-full bg-white text-[#5B4F4B] border border-[#D4C4C4] shadow-sm"
                   >
                     {a.name}
                   </span>

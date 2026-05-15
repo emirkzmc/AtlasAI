@@ -14,6 +14,7 @@ import type {
 } from "../types/aiChat.types";
 import {
   createChat,
+  deleteChat as deleteStoredChat,
   fetchChatMessages,
   fetchUserChats,
   saveMessage,
@@ -35,6 +36,7 @@ export function useAiChat(isOpen: boolean) {
   const [selectedModel, setSelectedModel] = useState<GeminiModelId>(DEFAULT_GEMINI_MODEL);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +102,35 @@ export function useAiChat(isOpen: boolean) {
     setPendingFileTexts([]);
     setError(null);
   }, []);
+
+  const deleteChat = useCallback(
+    async (chatId: string) => {
+      if (authLoading || !uid || deletingChatId) return;
+
+      setDeletingChatId(chatId);
+      setError(null);
+      if (activeChatId === chatId) abortRef.current?.abort();
+
+      try {
+        await deleteStoredChat(uid, chatId);
+        setChats((prev) => prev.filter((chat) => chat.id !== chatId));
+
+        if (activeChatId === chatId) {
+          setActiveChatId(null);
+          setMessages([]);
+          setStreamingContent("");
+          setPendingAttachments([]);
+          setPendingFileTexts([]);
+        }
+      } catch (err) {
+        console.error("[useAiChat] deleteChat:", err);
+        setError(err instanceof Error ? err.message : "Sohbet silinemedi.");
+      } finally {
+        setDeletingChatId(null);
+      }
+    },
+    [activeChatId, authLoading, deletingChatId, uid]
+  );
 
   const addAttachment = useCallback(async (file: File) => {
     const allowed = AI_CHAT_ACCEPTED_FILE_TYPES as readonly string[];
@@ -293,6 +324,7 @@ export function useAiChat(isOpen: boolean) {
     setSelectedModel,
     isLoadingChats,
     isLoadingMessages,
+    deletingChatId,
     isSending,
     streamingContent,
     error,
@@ -300,6 +332,7 @@ export function useAiChat(isOpen: boolean) {
     pendingAttachments,
     selectChat,
     startNewChat,
+    deleteChat,
     sendMessage,
     addAttachment,
     removeAttachment,

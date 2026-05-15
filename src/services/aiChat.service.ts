@@ -1,6 +1,7 @@
 import {
   getFirestore,
   collection,
+  deleteDoc,
   doc,
   getDocs,
   addDoc,
@@ -9,6 +10,7 @@ import {
   orderBy,
   serverTimestamp,
   Timestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { app } from "./firebase.config";
 import type {
@@ -83,6 +85,26 @@ export async function createChat(
     updatedAt: serverTimestamp(),
   });
   return ref.id;
+}
+
+export async function deleteChat(uid: string, chatId: string): Promise<void> {
+  try {
+    const messagesSnap = await getDocs(messagesCol(uid, chatId));
+    const messageDocs = messagesSnap.docs;
+
+    for (let i = 0; i < messageDocs.length; i += 450) {
+      const batch = writeBatch(db);
+      messageDocs.slice(i, i + 450).forEach((messageDoc) => {
+        batch.delete(messageDoc.ref);
+      });
+      await batch.commit();
+    }
+
+    await deleteDoc(doc(db, "users", uid, "aiChats", chatId));
+  } catch (err) {
+    console.error("[deleteChat] Error:", err);
+    throw new Error("Sohbet silinemedi.");
+  }
 }
 
 export async function updateChatMeta(

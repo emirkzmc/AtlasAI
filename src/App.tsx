@@ -13,6 +13,8 @@ import ProfilePage from "./pages/panel/student/ProfilePage";
 import DocsPage from "./pages/panel/student/DocsPage";
 import MentorshipPage from "./pages/panel/student/MentorshipPage";
 import OverviewPage from "./pages/panel/student/OverviewPage";
+import PerformancePage from "./pages/panel/student/PerformancePage";
+import WrongAnswersPage from "./pages/panel/student/WrongAnswersPage";
 import { TeacherDashboard } from "./pages/panel/teacher/Dashboard";
 import { features } from "./config/features";
 import type { JSX } from "react";
@@ -40,8 +42,8 @@ function App(): JSX.Element {
               <Route index element={<Navigate to="genel-bakis" replace />} />
               <Route path="genel-bakis" element={<OverviewPage />} />
               <Route path="dokumanlarim" element={<DocsPage />} />
-              <Route path="performans" element={<div>Performans</div>} />
-              <Route path="yanlislarim" element={<div>Yanlışlarım</div>} />
+              <Route path="performans" element={<PerformancePage />} />
+              <Route path="yanlislarim" element={<WrongAnswersPage />} />
               <Route path="mentorluk" element={<MentorshipPage />} />
               <Route path="profilim" element={<ProfilePage />} />
             </Route>

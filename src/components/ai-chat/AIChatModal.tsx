@@ -22,6 +22,8 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
     displayName.split(/\s+/)[0] ||
     user?.email?.split("@")[0] ||
     "Kullanıcı";
+  const isEmptyChat =
+    chat.messages.length === 0 && !chat.streamingContent && !chat.isSending;
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -59,13 +61,15 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
           chats={chat.chats}
           activeChatId={chat.activeChatId}
           isLoading={chat.isLoadingChats}
+          deletingChatId={chat.deletingChatId}
           onNewChat={chat.startNewChat}
           onSelectChat={chat.selectChat}
+          onDeleteChat={chat.deleteChat}
         />
 
         <main className="flex-1 flex flex-col bg-[#E8E8E8] relative min-w-0 min-h-0">
           <div className="flex items-center justify-between px-6 md:px-10 pt-6 pb-2 shrink-0">
-            <span className="text-[28px] font-bold text-[#1a1a1a] tracking-wide">ADMIX</span>
+            <span className="text-[28px]  text-[#1a1a1a] tracking-wide">ADMIX</span>
             <button
               type="button"
               onClick={onClose}
@@ -96,18 +100,34 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
               streamingContent={chat.streamingContent}
               isSending={chat.isSending}
               userFirstName={firstName}
+              centeredComposer={
+                isEmptyChat ? (
+                  <AIChatInput
+                    selectedModel={chat.selectedModel}
+                    onModelChange={chat.setSelectedModel}
+                    onSend={chat.sendMessage}
+                    onAddFile={chat.addAttachment}
+                    attachments={chat.pendingAttachments}
+                    onRemoveAttachment={chat.removeAttachment}
+                    disabled={chat.isSending}
+                    placement="inline"
+                  />
+                ) : null
+              }
             />
           )}
 
-          <AIChatInput
-            selectedModel={chat.selectedModel}
-            onModelChange={chat.setSelectedModel}
-            onSend={chat.sendMessage}
-            onAddFile={chat.addAttachment}
-            attachments={chat.pendingAttachments}
-            onRemoveAttachment={chat.removeAttachment}
-            disabled={chat.isSending}
-          />
+          {!isEmptyChat && (
+            <AIChatInput
+              selectedModel={chat.selectedModel}
+              onModelChange={chat.setSelectedModel}
+              onSend={chat.sendMessage}
+              onAddFile={chat.addAttachment}
+              attachments={chat.pendingAttachments}
+              onRemoveAttachment={chat.removeAttachment}
+              disabled={chat.isSending}
+            />
+          )}
         </main>
       </div>
     </div>,
