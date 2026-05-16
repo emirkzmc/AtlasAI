@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AiChatSummary } from "../../types/aiChat.types";
 
@@ -22,6 +22,14 @@ export default function AIChatSidebar({
   onDeleteChat,
 }: AIChatSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   function handleDeleteChat(chat: AiChatSummary) {
     const ok = window.confirm(`"${chat.title}" sohbeti silinsin mi?`);
@@ -31,9 +39,11 @@ export default function AIChatSidebar({
   return (
     <motion.aside
       initial={false}
-      animate={{ width: isCollapsed ? 62 : 240 }}
+      animate={{ width: isCollapsed ? (isMobile ? 52 : 62) : 240 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="shrink-0 flex flex-col bg-[#B89E9E] text-white py-2 h-full overflow-hidden"
+      className={`shrink-0 flex flex-col bg-[#B89E9E] text-white py-2 h-full overflow-hidden ${
+        isMobile && !isCollapsed ? "absolute left-0 top-0 bottom-0 z-50 shadow-2xl rounded-l-[28px]" : "relative"
+      }`}
     >
       <div className="pt-1.5 flex flex-col gap-2.5 min-h-0 flex-1 px-3">
         <button
@@ -153,6 +163,14 @@ export default function AIChatSidebar({
           )}
         </AnimatePresence>
       </div>
+      
+      {/* Mobile overlay for when menu is open */}
+      {isMobile && !isCollapsed && (
+        <div 
+          className="fixed inset-0 bg-black/10 z-[-1]"
+          onClick={() => setIsCollapsed(true)}
+        />
+      )}
     </motion.aside>
   );
 }

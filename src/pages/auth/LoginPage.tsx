@@ -7,8 +7,8 @@ import { authPanelTransition } from '../../constants/auth.animations'
 function LoginPage() {
   return (
     <main className="h-screen w-screen overflow-hidden">
-      <section className="relative h-full w-full bg-[#f4f4f4]">
-        <div className="absolute top-0 bottom-0 left-0 w-1/2 overflow-hidden">
+      <section className="relative h-full w-full bg-[#f4f4f4] flex">
+        <div className="hidden lg:block absolute top-0 bottom-0 left-0 w-1/2 overflow-hidden">
           <motion.div
             className="h-full w-full"
             initial={{ opacity: 0 }}
@@ -21,9 +21,9 @@ function LoginPage() {
         </div>
 
         <motion.div
-          className="absolute top-0 bottom-0 w-1/2 z-10 shadow-2xl"
+          className="absolute top-0 bottom-0 w-full lg:w-1/2 z-10 lg:shadow-2xl left-0 lg:left-[50%]"
           initial={false}
-          animate={{ left: '50%' }}
+          animate={{ x: 0 }}
           transition={authPanelTransition}
         >
           <LoginForm />

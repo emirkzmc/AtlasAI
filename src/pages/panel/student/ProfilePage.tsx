@@ -85,22 +85,22 @@ export default function ProfilePage() {
     : `Toplam Doküman: ${totalDocuments}`;
 
   return (
-    <div className="flex flex-col gap-8 max-w-250 mx-auto pb-10 w-full">
-      <div className="flex items-start gap-8">
+    <div className="flex flex-col gap-8 max-w-[1000px] mx-auto pb-10 w-full">
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 text-center sm:text-left">
         <div className="flex flex-col items-start gap-2 shrink-0">
           <ProfileAvatar size={120} editable onError={setPhotoError} />
           {photoError && (
             <p className="text-[13px] text-red-600 max-w-55 m-0">{photoError}</p>
           )}
         </div>
-        <div className="flex flex-col min-w-0">
-          <h2 className="text-[32px] font-semibold text-[#1a1a1a] mb-1">{displayName}</h2>
-          <p className="text-[16px] text-[#737373] mb-5">Üye oldu: {joinedDate}</p>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Başarı</span>
-            <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">{totalDocumentsText}</span>
-            <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">🔥 -- günlük seri</span>
-            <span className="px-5 py-2 bg-white rounded-full text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Soru</span>
+        <div className="flex flex-col min-w-0 items-center sm:items-start">
+          <h2 className="text-[28px] sm:text-[32px] font-semibold text-[#1a1a1a] mb-1">{displayName}</h2>
+          <p className="text-[15px] sm:text-[16px] text-[#737373] mb-5">Üye oldu: {joinedDate}</p>
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
+            <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Başarı</span>
+            <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">{totalDocumentsText}</span>
+            <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">🔥 -- günlük seri</span>
+            <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Soru</span>
           </div>
         </div>
       </div>
