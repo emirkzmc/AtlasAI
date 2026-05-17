@@ -11,8 +11,12 @@ const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
 export interface GeminiContentPart {
   role: "user" | "model";
-  parts: { text: string }[];
+  parts: GeminiPart[];
 }
+
+export type GeminiPart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } };
 
 function assertApiKey(): string {
   if (!GEMINI_API_KEY?.trim()) {
@@ -41,6 +45,7 @@ function parseGeminiError(status: number, body: string): string {
 export async function* streamGeminiChat(
   model: GeminiModelId,
   contents: GeminiContentPart[],
+  systemInstruction?: string,
   signal?: AbortSignal
 ): AsyncGenerator<string> {
   const key = assertApiKey();
@@ -50,7 +55,12 @@ export async function* streamGeminiChat(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     signal,
-    body: JSON.stringify({ contents }),
+    body: JSON.stringify({
+      contents,
+      ...(systemInstruction
+        ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
+        : {}),
+    }),
   });
 
   if (!res.ok) {

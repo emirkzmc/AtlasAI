@@ -106,7 +106,9 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                     selectedModel={chat.selectedModel}
                     onModelChange={chat.setSelectedModel}
                     onSend={chat.sendMessage}
-                    onAddFile={chat.addAttachment}
+                    onAddDocument={chat.addDocumentAttachment}
+                    availableDocuments={chat.availableDocuments}
+                    isLoadingDocuments={chat.isLoadingDocuments}
                     attachments={chat.pendingAttachments}
                     onRemoveAttachment={chat.removeAttachment}
                     disabled={chat.isSending}
@@ -122,7 +124,9 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
               selectedModel={chat.selectedModel}
               onModelChange={chat.setSelectedModel}
               onSend={chat.sendMessage}
-              onAddFile={chat.addAttachment}
+              onAddDocument={chat.addDocumentAttachment}
+              availableDocuments={chat.availableDocuments}
+              isLoadingDocuments={chat.isLoadingDocuments}
               attachments={chat.pendingAttachments}
               onRemoveAttachment={chat.removeAttachment}
               disabled={chat.isSending}

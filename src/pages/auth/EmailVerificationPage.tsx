@@ -178,6 +178,7 @@ export default function EmailVerificationPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
+
           © 2026 AtlasAI Academy.
         </motion.p>
       </motion.div>

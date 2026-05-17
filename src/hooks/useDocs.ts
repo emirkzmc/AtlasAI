@@ -60,9 +60,17 @@ export function useDocs(): UseDocsReturn {
         }
         setDocuments((prev) => [...uploaded, ...prev]);
 
-        if (!features.enableStorage) {
-          setUploadInfo(STORAGE_DISABLED_MESSAGE);
+        const truncated = uploaded.some((doc) => doc.contentTruncated);
+        const readyCount = uploaded.filter((doc) => doc.contentStatus === "ready").length;
+        const infoMessages: string[] = [];
+        if (!features.enableStorage) infoMessages.push(STORAGE_DISABLED_MESSAGE);
+        if (readyCount > 0) {
+          infoMessages.push(`${readyCount} dokümanın içeriği AI için hazırlandı.`);
         }
+        if (truncated) {
+          infoMessages.push("Bazı dokümanlar uzun olduğu için ilk bölümü işlendi.");
+        }
+        if (infoMessages.length) setUploadInfo(infoMessages.join(" "));
       } catch (err) {
         const message =
           err instanceof Error
