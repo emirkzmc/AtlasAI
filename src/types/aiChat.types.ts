@@ -7,9 +7,11 @@ export type GeminiModelId =
 export type ChatMessageRole = "user" | "model";
 
 export interface ChatAttachmentMeta {
+  id?: string;
   name: string;
   type: string;
   size: number;
+  createdAt?: string;
 }
 
 export interface AiChatMessage {

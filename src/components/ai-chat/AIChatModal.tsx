@@ -69,7 +69,7 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
 
         <main className="flex-1 flex flex-col bg-[#E8E8E8] relative min-w-0 min-h-0">
           <div className="flex items-center justify-between px-6 md:px-10 pt-6 pb-2 shrink-0">
-            <span className="text-[28px]  text-[#1a1a1a] tracking-wide">ADMIX</span>
+            <span className="text-[28px]  text-[#1a1a1a] tracking-wide">AtlasAI</span>
             <button
               type="button"
               onClick={onClose}
@@ -106,7 +106,9 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                     selectedModel={chat.selectedModel}
                     onModelChange={chat.setSelectedModel}
                     onSend={chat.sendMessage}
-                    onAddFile={chat.addAttachment}
+                    onAddDocument={chat.addDocumentAttachment}
+                    availableDocuments={chat.availableDocuments}
+                    isLoadingDocuments={chat.isLoadingDocuments}
                     attachments={chat.pendingAttachments}
                     onRemoveAttachment={chat.removeAttachment}
                     disabled={chat.isSending}
@@ -122,7 +124,9 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
               selectedModel={chat.selectedModel}
               onModelChange={chat.setSelectedModel}
               onSend={chat.sendMessage}
-              onAddFile={chat.addAttachment}
+              onAddDocument={chat.addDocumentAttachment}
+              availableDocuments={chat.availableDocuments}
+              isLoadingDocuments={chat.isLoadingDocuments}
               attachments={chat.pendingAttachments}
               onRemoveAttachment={chat.removeAttachment}
               disabled={chat.isSending}

@@ -177,7 +177,7 @@ export default function ForgotPasswordPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          © 2026 Admix Academy.
+          © 2026 AtlasAI.
         </motion.p>
       </div>
     </main>

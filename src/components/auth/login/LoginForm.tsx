@@ -95,7 +95,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex w-full h-full flex-col py-35 gap-5 bg-white px-20 xl:px-32 2xl:px-40">
+    <div className="flex w-full h-full flex-col justify-center gap-5 bg-white px-20 py-12 xl:px-32 2xl:px-40">
       <motion.h1
         className="m-0 text-[32px] font-bold text-brand"
         initial={{ y: -10, opacity: 0 }}

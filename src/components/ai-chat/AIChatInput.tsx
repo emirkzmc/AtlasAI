@@ -1,14 +1,16 @@
 import {useEffect, useRef, useState, type KeyboardEvent} from "react";
 import {createPortal} from "react-dom";
 import {GEMINI_MODELS} from "../../constants/aiChat.constants";
-import {AI_CHAT_ACCEPTED_EXTENSIONS} from "../../constants/aiChat.constants";
 import type {ChatAttachmentMeta, GeminiModelId} from "../../types/aiChat.types";
+import type {IDocument} from "../docs/types";
 
 type AIChatInputProps = {
     selectedModel: GeminiModelId;
     onModelChange: (m: GeminiModelId) => void;
     onSend: (text: string) => void;
-    onAddFile: (file: File) => void;
+    onAddDocument: (document: IDocument) => void;
+    availableDocuments: IDocument[];
+    isLoadingDocuments: boolean;
     attachments: ChatAttachmentMeta[];
     onRemoveAttachment: (index: number) => void;
     disabled?: boolean;
@@ -19,7 +21,9 @@ export default function AIChatInput({
                                         selectedModel,
                                         onModelChange,
                                         onSend,
-                                        onAddFile,
+                                        onAddDocument,
+                                        availableDocuments,
+                                        isLoadingDocuments,
                                         attachments,
                                         onRemoveAttachment,
                                         disabled = false,
@@ -28,8 +32,10 @@ export default function AIChatInput({
     const [text, setText] = useState("");
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
-    const fileRef = useRef<HTMLInputElement>(null);
+    const [documentPickerOpen, setDocumentPickerOpen] = useState(false);
+    const [documentPickerRect, setDocumentPickerRect] = useState<DOMRect | null>(null);
     const modelButtonRef = useRef<HTMLButtonElement>(null);
+    const documentButtonRef = useRef<HTMLButtonElement>(null);
 
     const modelLabel =
         GEMINI_MODELS.find((m) => m.id === selectedModel)?.label ?? selectedModel;
@@ -66,6 +72,74 @@ export default function AIChatInput({
             window.removeEventListener("scroll", updatePosition, true);
         };
     }, [dropdownOpen]);
+
+    useEffect(() => {
+        if (!documentPickerOpen) return;
+
+        const updatePosition = () => {
+            setDocumentPickerRect(documentButtonRef.current?.getBoundingClientRect() ?? null);
+        };
+
+        updatePosition();
+        window.addEventListener("resize", updatePosition);
+        window.addEventListener("scroll", updatePosition, true);
+        return () => {
+            window.removeEventListener("resize", updatePosition);
+            window.removeEventListener("scroll", updatePosition, true);
+        };
+    }, [documentPickerOpen]);
+
+    function formatBytes(bytes: number): string {
+        if (!bytes) return "0 KB";
+        const mb = bytes / (1024 * 1024);
+        if (mb >= 1) return `${mb.toFixed(1)} MB`;
+        return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    }
+
+    function getFileType(document: IDocument): string {
+        return document.mimeType?.split("/").pop()?.toUpperCase() ||
+            document.type?.split("/").pop()?.toUpperCase() ||
+            document.name.split(".").pop()?.toUpperCase() ||
+            "DOSYA";
+    }
+
+    function isSelected(document: IDocument): boolean {
+        return attachments.some((attachment) => attachment.id === document.id);
+    }
+
+    function hasDocumentText(document: IDocument): boolean {
+        return Boolean(
+            document.extractedText?.trim() ||
+            document.contentText?.trim() ||
+            document.textContent?.trim() ||
+            document.plainText?.trim()
+        );
+    }
+
+    function hasDocumentFileAccess(document: IDocument): boolean {
+        return Boolean(
+            document.downloadURL?.trim() ||
+            document.downloadUrl?.trim() ||
+            document.fileUrl?.trim() ||
+            document.contentUrl?.trim() ||
+            document.url?.trim() ||
+            document.storagePath?.trim() ||
+            document.path?.trim()
+        );
+    }
+
+    function isTxtOrPdf(document: IDocument): boolean {
+        const ext = document.name.split(".").pop()?.toLowerCase();
+        const type = document.mimeType || document.type || "";
+        return type === "text/plain" || type === "application/pdf" || ext === "txt" || ext === "pdf";
+    }
+
+    function getReadabilityLabel(document: IDocument): string {
+        if (!isTxtOrPdf(document)) return "Destek yok";
+        if (hasDocumentText(document)) return "Okunabilir";
+        if (hasDocumentFileAccess(document)) return "Dosyadan oku";
+        return "İçerik yok";
+    }
 
     const isInline = placement === "inline";
 
@@ -105,32 +179,103 @@ export default function AIChatInput({
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={disabled}
-              placeholder="Soru sorun"
+              placeholder="Fizik sorusu sorun veya doküman ekleyin"
               rows={2}
               className="w-full bg-transparent text-white/90 placeholder:text-white/50 text-[15px] px-6 pt-5 pb-2 resize-none border-0 outline-none min-h-[56px] max-h-[120px] font-[inherit]"
           />
 
                     <div className="flex items-end justify-between px-4 pb-4 pt-1">
                         <button
+                            ref={documentButtonRef}
                             type="button"
-                            onClick={() => fileRef.current?.click()}
+                            onClick={() => setDocumentPickerOpen((open) => !open)}
                             disabled={disabled}
                             className="w-10 h-10 flex items-center justify-center rounded-full  hover:bg-white/25 text-white text-2xl font-light transition-colors cursor-pointer border-0 shrink-0 disabled:opacity-50"
-                            aria-label="Dosya ekle"
+                            aria-label="Doküman seç"
                         >
                             +
                         </button>
-                        <input
-                            ref={fileRef}
-                            type="file"
-                            accept={AI_CHAT_ACCEPTED_EXTENSIONS}
-                            className="hidden"
-                            onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                e.target.value = "";
-                                if (f) onAddFile(f);
-                            }}
-                        />
+                        {documentPickerOpen && (
+                            <>
+                                <div
+                                    className="fixed inset-0 z-[190]"
+                                    onClick={() => setDocumentPickerOpen(false)}
+                                    aria-hidden
+                                />
+                                {documentPickerRect &&
+                                    createPortal(
+                                        <div
+                                            className="fixed z-[200] w-[360px] max-w-[calc(100vw-24px)] rounded-2xl border border-[#E5E5E5] bg-white shadow-xl overflow-hidden"
+                                            style={{
+                                                left: Math.max(
+                                                    12,
+                                                    Math.min(documentPickerRect.left, window.innerWidth - 372)
+                                                ),
+                                                top: Math.min(documentPickerRect.bottom + 10, window.innerHeight - 360),
+                                            }}
+                                        >
+                                            <div className="px-4 py-3 border-b border-[#EFEFEF]">
+                                                <p className="m-0 text-[13px] font-semibold text-[#1a1a1a]">
+                                                    Doküman seç
+                                                </p>
+                                                <p className="m-0 mt-0.5 text-[11px] text-[#737373]">
+                                                    Dokümanlarım sayfasındaki kayıtlar
+                                                </p>
+                                            </div>
+
+                                            <div className="max-h-[280px] overflow-y-auto p-2">
+                                                {isLoadingDocuments ? (
+                                                    <div className="px-3 py-8 text-center text-[13px] text-[#737373]">
+                                                        Dokümanlar yükleniyor...
+                                                    </div>
+                                                ) : availableDocuments.length === 0 ? (
+                                                    <div className="px-3 py-8 text-center text-[13px] text-[#737373]">
+                                                        Henüz doküman yüklenmemiş.
+                                                    </div>
+                                                ) : (
+                                                    availableDocuments.map((document) => {
+                                                        const selected = isSelected(document);
+
+                                                        return (
+                                                            <button
+                                                                key={document.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (!selected) onAddDocument(document);
+                                                                    setDocumentPickerOpen(false);
+                                                                }}
+                                                                disabled={selected || disabled}
+                                                                className="w-full rounded-xl border-0 bg-transparent px-3 py-3 text-left transition-colors hover:bg-[#F5F2F1] disabled:cursor-default disabled:opacity-60"
+                                                            >
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <p className="m-0 truncate text-[13px] font-medium text-[#1a1a1a]">
+                                                                            {document.name}
+                                                                        </p>
+                                                                        <p className="m-0 mt-1 text-[11px] text-[#737373]">
+                                                                            {getFileType(document)} · {document.createdAt || "Tarih yok"} · {formatBytes(document.size)}
+                                                                        </p>
+                                                                    </div>
+                                                                    <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${
+                                                                        selected
+                                                                            ? "bg-[#F3F0EF] text-[#5B4F4B]"
+                                                                            : getReadabilityLabel(document) === "İçerik yok"
+                                                                              ? "bg-amber-50 text-amber-700"
+                                                                              : "bg-[#F3F0EF] text-[#5B4F4B]"
+                                                                    }`}>
+                                                                        {selected ? "Eklendi" : getReadabilityLabel(document)}
+                                                                    </span>
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        </div>,
+                                        document.body
+                                    )}
+                            </>
+                        )}
 
                         <div className="relative">
                             <button

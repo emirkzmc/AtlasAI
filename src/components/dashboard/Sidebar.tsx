@@ -50,7 +50,7 @@ export default function Sidebar({ activeId, setActiveId }: SidebarProps) {
               maxWidth: isOpen ? 180 : 0,
             }}
           >
-            ADMIX
+            AtlasAI
           </motion.h1>
           <button
             type="button"

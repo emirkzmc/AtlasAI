@@ -53,7 +53,7 @@ export default function AIButton() {
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="overflow-hidden whitespace-nowrap"
             >
-              <span className="text-black font-medium text-sm pr-4">Yapay Zeka</span>
+              <span className="text-black font-medium text-sm pr-4">AtlasAI</span>
             </motion.div>
           )}
         </AnimatePresence>
