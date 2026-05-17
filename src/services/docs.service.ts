@@ -232,7 +232,8 @@ export async function uploadDocument(
     } catch (err) {
       console.error("[uploadDocument] Firestore write failed:", err);
       throw new Error(
-        "Doküman kaydı oluşturulurken bir hata oluştu. Firestore izinlerini kontrol edin."
+        "Doküman kaydı oluşturulurken bir hata oluştu. Firestore izinlerini kontrol edin.",
+        { cause: err }
       );
     }
   }
@@ -252,7 +253,7 @@ export async function uploadDocument(
       },
       (error) => {
         console.error("[uploadDocument] Storage upload error:", error);
-        reject(new Error(getStorageErrorMessage(error)));
+        reject(new Error(getStorageErrorMessage(error), { cause: error }));
       },
       () => resolve()
     );
