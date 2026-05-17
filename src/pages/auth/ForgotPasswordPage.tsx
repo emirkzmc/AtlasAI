@@ -151,7 +151,7 @@ export default function ForgotPasswordPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full h-12 bg-[#5B4F4B] text-white text-[15px] font-semibold rounded-xl hover:bg-[#3a2a2a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full h-12 bg-[#5B4F4B] text-white text-[15px] font-semibold rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {submitting ? 'Gönderiliyor…' : 'Şifre sıfırlama bağlantısı gönder'}
                   </button>
@@ -177,7 +177,7 @@ export default function ForgotPasswordPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          © 2026 Admix Academy.
+          © 2026 AtlasAI Academy.
         </motion.p>
       </div>
     </main>

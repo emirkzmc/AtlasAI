@@ -46,7 +46,7 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 md:p-8"
+      className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-6 md:p-8"
       style={{ backgroundColor: "rgba(0, 0, 0, 0.6)" }}
       onClick={onClose}
       role="dialog"
@@ -69,7 +69,7 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
 
         <main className="flex-1 flex flex-col bg-[#E8E8E8] relative min-w-0 min-h-0">
           <div className="flex items-center justify-between px-6 md:px-10 pt-6 pb-2 shrink-0">
-            <span className="text-[28px]  text-[#1a1a1a] tracking-wide">ADMIX</span>
+            <span className="text-[28px]  text-[#1a1a1a] tracking-wide">AtlasAI</span>
             <button
               type="button"
               onClick={onClose}

@@ -146,7 +146,7 @@ export default function EmailVerificationPage() {
               type="button"
               onClick={handleVerified}
               disabled={checking}
-              className="w-full h-12 bg-[#5B4F4B] text-white text-[15px] font-semibold rounded-xl hover:bg-[#3a2a2a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full h-12 bg-[#5B4F4B] text-white text-[15px] font-semibold rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {checking ? 'Kontrol ediliyor…' : 'Doğruladım, devam et'}
             </button>
@@ -178,7 +178,7 @@ export default function EmailVerificationPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          © 2026 Admix Academy.
+          © 2026 AtlasAI Academy.
         </motion.p>
       </motion.div>
     </main>
