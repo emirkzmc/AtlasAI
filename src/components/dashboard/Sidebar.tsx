@@ -67,7 +67,7 @@ export default function Sidebar({ activeId, setActiveId, isMobileOpen, setIsMobi
               maxWidth: effectiveIsOpen ? 180 : 0,
             }}
           >
-            ADMIX
+            AtlasAI
           </motion.h1>
           {isMobile ? (
              <button

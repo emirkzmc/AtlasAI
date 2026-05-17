@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuth } from "firebase/auth";
+import { getDownloadURL, getStorage, ref as storageRef } from "firebase/storage";
 import { useAuth } from "./useAuth";
 import { DEFAULT_GEMINI_MODEL } from "../constants/aiChat.constants";
 import {
-  AI_CHAT_ACCEPTED_FILE_TYPES,
   AI_CHAT_MAX_FILE_BYTES,
+  ATLAS_AI_SYSTEM_INSTRUCTION,
 } from "../constants/aiChat.constants";
 import type {
   AiChatMessage,
@@ -22,7 +23,115 @@ import {
   updateChatMeta,
 } from "../services/aiChat.service";
 import { app } from "../services/firebase.config";
-import { streamGeminiChat, type GeminiContentPart } from "../services/gemini.service";
+import { streamGeminiChat, type GeminiContentPart, type GeminiPart } from "../services/gemini.service";
+import { fetchDocuments } from "../services/docs.service";
+import type { IDocument } from "../components/docs/types";
+
+type PendingDocumentContext = {
+  id: string;
+  text?: string;
+  part?: GeminiPart;
+};
+
+interface NormalizedDocument {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  createdAt?: string;
+  downloadUrl: string | null;
+  storagePath: string | null;
+  extractedText: string | null;
+  contentStatus?: IDocument["contentStatus"];
+  extension: string;
+  isTxt: boolean;
+  isPdf: boolean;
+}
+
+const storage = getStorage(app);
+
+function getDocumentExtension(documentName: string): string {
+  return documentName.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function getDocumentMimeType(documentName: string, document: IDocument): string {
+  const ext = getDocumentExtension(documentName);
+  if (document.mimeType) return document.mimeType;
+  if (document.type) return document.type;
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "txt") return "text/plain";
+  return ext || "unknown";
+}
+
+function firstNonEmpty(values: Array<string | null | undefined>): string | null {
+  return values.find((value) => typeof value === "string" && value.trim())?.trim() ?? null;
+}
+
+function normalizeDocument(document: IDocument): NormalizedDocument {
+  const name = firstNonEmpty([document.name, document.fileName]) ?? "Bilinmeyen doküman";
+  const extension = getDocumentExtension(name);
+  const mimeType = getDocumentMimeType(name, document);
+  return {
+    id: document.id,
+    name,
+    mimeType,
+    size: document.size ?? 0,
+    createdAt: document.createdAt,
+    downloadUrl: firstNonEmpty([
+      document.downloadURL,
+      document.downloadUrl,
+      document.fileUrl,
+      document.contentUrl,
+      document.url,
+    ]),
+    storagePath: firstNonEmpty([document.storagePath, document.path]),
+    extractedText: firstNonEmpty([
+      document.extractedText,
+      document.contentText,
+      document.textContent,
+      document.plainText,
+    ]),
+    contentStatus: document.contentStatus,
+    extension,
+    isTxt: mimeType === "text/plain" || extension === "txt",
+    isPdf: mimeType === "application/pdf" || extension === "pdf",
+  };
+}
+
+async function resolveDocumentUrl(document: NormalizedDocument): Promise<string | null> {
+  if (document.downloadUrl) {
+    console.debug("[AtlasAI Document] Using downloadURL", {
+      id: document.id,
+      name: document.name,
+    });
+    return document.downloadUrl;
+  }
+
+  if (!document.storagePath) return null;
+
+  console.debug("[AtlasAI Document] Resolving Storage path", {
+    id: document.id,
+    name: document.name,
+    storagePath: document.storagePath,
+  });
+  return getDownloadURL(storageRef(storage, document.storagePath));
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("Doküman içeriği okunamadı."));
+        return;
+      }
+      resolve(result.split(",", 2)[1] ?? "");
+    };
+    reader.onerror = () => reject(new Error("Doküman içeriği okunamadı."));
+    reader.readAsDataURL(new Blob([buffer]));
+  });
+}
 
 export function useAiChat(isOpen: boolean) {
   const { user, loading: authLoading } = useAuth();
@@ -41,7 +150,9 @@ export function useAiChat(isOpen: boolean) {
   const [streamingContent, setStreamingContent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachmentMeta[]>([]);
-  const [pendingFileTexts, setPendingFileTexts] = useState<string[]>([]);
+  const [pendingDocumentContexts, setPendingDocumentContexts] = useState<PendingDocumentContext[]>([]);
+  const [availableDocuments, setAvailableDocuments] = useState<IDocument[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -63,6 +174,24 @@ export function useAiChat(isOpen: boolean) {
   useEffect(() => {
     if (isOpen && !authLoading && uid) void loadChats();
   }, [isOpen, authLoading, uid, loadChats]);
+
+  const loadDocuments = useCallback(async () => {
+    if (authLoading || !uid) return;
+    setIsLoadingDocuments(true);
+    try {
+      const list = await fetchDocuments(uid);
+      setAvailableDocuments(list);
+    } catch (err) {
+      console.error("[useAiChat] loadDocuments:", err);
+      setError("Dokümanlar yüklenemedi.");
+    } finally {
+      setIsLoadingDocuments(false);
+    }
+  }, [authLoading, uid]);
+
+  useEffect(() => {
+    if (isOpen && !authLoading && uid) void loadDocuments();
+  }, [isOpen, authLoading, uid, loadDocuments]);
 
   const loadMessages = useCallback(
     async (chatId: string) => {
@@ -99,7 +228,7 @@ export function useAiChat(isOpen: boolean) {
     setMessages([]);
     setStreamingContent("");
     setPendingAttachments([]);
-    setPendingFileTexts([]);
+    setPendingDocumentContexts([]);
     setError(null);
   }, []);
 
@@ -120,7 +249,7 @@ export function useAiChat(isOpen: boolean) {
           setMessages([]);
           setStreamingContent("");
           setPendingAttachments([]);
-          setPendingFileTexts([]);
+          setPendingDocumentContexts([]);
         }
       } catch (err) {
         console.error("[useAiChat] deleteChat:", err);
@@ -132,47 +261,122 @@ export function useAiChat(isOpen: boolean) {
     [activeChatId, authLoading, deletingChatId, uid]
   );
 
-  const addAttachment = useCallback(async (file: File) => {
-    const allowed = AI_CHAT_ACCEPTED_FILE_TYPES as readonly string[];
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    const extOk =
-      ext &&
-      ["pdf", "txt", "docx", "png", "jpg", "jpeg"].includes(ext);
-    if (!allowed.includes(file.type) && !extOk) {
-      setError("Yalnızca PDF, TXT, DOCX, PNG, JPG veya JPEG dosyaları ekleyebilirsiniz.");
+  const addDocumentAttachment = useCallback(async (document: IDocument) => {
+    const normalized = normalizeDocument(document);
+    console.debug("[AtlasAI Document] Selected document:", {
+      id: normalized.id,
+      name: normalized.name,
+      mimeType: normalized.mimeType,
+      contentStatus: normalized.contentStatus,
+      hasExtractedText: Boolean(normalized.extractedText),
+      hasDownloadUrl: Boolean(normalized.downloadUrl),
+      hasStoragePath: Boolean(normalized.storagePath),
+    });
+
+    if (pendingAttachments.some((attachment) => attachment.id === normalized.id)) {
+      setError("Bu doküman zaten sohbet bağlamına eklendi.");
       return;
     }
-    if (file.size > AI_CHAT_MAX_FILE_BYTES) {
-      setError("Dosya boyutu en fazla 5 MB olabilir.");
+
+    if (!normalized.isTxt && !normalized.isPdf) {
+      console.warn("[AtlasAI Document] Unsupported readable type", normalized);
+      setError("Bu dokümanın içeriği şu anda okunamıyor. Lütfen TXT veya PDF formatında bir doküman seçin.");
+      return;
+    }
+
+    if (normalized.size > AI_CHAT_MAX_FILE_BYTES && !normalized.extractedText) {
+      setError("Sohbet bağlamına eklenecek doküman en fazla 5 MB olabilir.");
       return;
     }
 
     setError(null);
-    const meta: ChatAttachmentMeta = {
-      name: file.name,
-      type: file.type || ext || "unknown",
-      size: file.size,
-    };
-    setPendingAttachments((prev) => [...prev, meta]);
 
-    if (file.type === "text/plain" || ext === "txt") {
-      try {
-        const text = await file.text();
-        const clipped = text.slice(0, 8000);
-        setPendingFileTexts((prev) => [
+    try {
+      const meta: ChatAttachmentMeta = {
+        id: normalized.id,
+        name: normalized.name,
+        type: normalized.mimeType,
+        size: normalized.size,
+        createdAt: normalized.createdAt,
+      };
+
+      if (normalized.extractedText) {
+        console.debug("[AtlasAI Document] Using extractedText from Firestore", {
+          id: normalized.id,
+          name: normalized.name,
+        });
+        const clipped = normalized.extractedText.slice(0, 12000);
+        setPendingDocumentContexts((prev) => [
           ...prev,
-          `--- ${file.name} ---\n${clipped}`,
+          { id: normalized.id, text: `--- ${normalized.name} ---\n${clipped}` },
         ]);
-      } catch {
-        /* TODO: büyük/binary txt parse */
+        setPendingAttachments((prev) => [...prev, meta]);
+        return;
       }
+
+      console.warn("[AtlasAI Document] No extractedText found", {
+        id: normalized.id,
+        name: normalized.name,
+        contentStatus: normalized.contentStatus,
+      });
+
+      const url = await resolveDocumentUrl(normalized);
+      if (!url) {
+        console.warn("[AtlasAI Document] No readable content found", {
+          id: normalized.id,
+          name: normalized.name,
+          contentStatus: normalized.contentStatus,
+        });
+        const message =
+          normalized.contentStatus === "metadata_only" || !normalized.contentStatus
+            ? "Bu doküman eski metadata kaydı olduğu için içeriği okunamıyor. Lütfen dosyayı yeniden yükleyin."
+            : "Bu dokümanın yalnızca kayıt bilgisi var, gerçek dosya içeriğine ulaşılamıyor. Lütfen dokümanı tekrar yükleyin veya Storage ayarını aktif edin.";
+        setError(message);
+        return;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Doküman içeriği alınamadı.");
+
+      if (normalized.isTxt) {
+        const text = await response.text();
+        const clipped = text.slice(0, 12000);
+        setPendingDocumentContexts((prev) => [
+          ...prev,
+          { id: normalized.id, text: `--- ${normalized.name} ---\n${clipped}` },
+        ]);
+      } else {
+        const base64 = await arrayBufferToBase64(await response.arrayBuffer());
+        setPendingDocumentContexts((prev) => [
+          ...prev,
+          {
+            id: normalized.id,
+            part: { inlineData: { mimeType: "application/pdf", data: base64 } },
+          },
+        ]);
+      }
+
+      setPendingAttachments((prev) => [...prev, meta]);
+    } catch (err) {
+      console.error("[AtlasAI Document] PDF/TXT read failed", {
+        id: normalized.id,
+        name: normalized.name,
+        error: err,
+      });
+      setError("Bu dokümanın içeriği şu anda okunamıyor. Lütfen TXT veya PDF formatında bir doküman seçin.");
     }
-    // TODO: PDF/DOCX/görsel içerik parse — şimdilik yalnızca chip gösterilir
-  }, []);
+  }, [pendingAttachments]);
 
   const removeAttachment = useCallback((index: number) => {
-    setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
-    setPendingFileTexts((prev) => prev.filter((_, i) => i !== index));
+    setPendingAttachments((prev) => {
+      const removedId = prev[index]?.id;
+      if (removedId) {
+        setPendingDocumentContexts((contexts) =>
+          contexts.filter((context) => context.id !== removedId)
+        );
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   }, []);
 
   const sendMessage = useCallback(
@@ -183,13 +387,19 @@ export function useAiChat(isOpen: boolean) {
       let chatId = activeChatId;
       let persistedChatId: string | null = activeChatId;
       const attachmentSnapshot = [...pendingAttachments];
-      const fileContext = pendingFileTexts.length
-        ? `\n\n[Ek dosya içeriği]\n${pendingFileTexts.join("\n\n")}`
+      const pendingTexts = pendingDocumentContexts
+        .map((context) => context.text)
+        .filter((text): text is string => Boolean(text));
+      const fileContext = pendingTexts.length
+        ? `\n\n[Yüklenen doküman içeriği]\n${pendingTexts.join("\n\n")}`
         : "";
       const fullUserText = prompt + fileContext;
+      const documentPartsSnapshot = pendingDocumentContexts
+        .map((context) => context.part)
+        .filter((part): part is GeminiPart => Boolean(part));
 
       setPendingAttachments([]);
-      setPendingFileTexts([]);
+      setPendingDocumentContexts([]);
       setIsSending(true);
       setStreamingContent("");
       setError(null);
@@ -257,13 +467,14 @@ export function useAiChat(isOpen: boolean) {
             role: m.role,
             parts: [{ text: m.content }],
           })),
-          { role: "user" as const, parts: [{ text: fullUserText }] },
+          { role: "user" as const, parts: [{ text: fullUserText }, ...documentPartsSnapshot] },
         ];
 
         let fullReply = "";
         for await (const chunk of streamGeminiChat(
           selectedModel,
           history,
+          ATLAS_AI_SYSTEM_INSTRUCTION,
           abortRef.current.signal
         )) {
           fullReply += chunk;
@@ -311,7 +522,7 @@ export function useAiChat(isOpen: boolean) {
       isSending,
       messages,
       pendingAttachments,
-      pendingFileTexts,
+      pendingDocumentContexts,
       selectedModel,
     ]
   );
@@ -330,11 +541,13 @@ export function useAiChat(isOpen: boolean) {
     error,
     setError,
     pendingAttachments,
+    availableDocuments,
+    isLoadingDocuments,
     selectChat,
     startNewChat,
     deleteChat,
     sendMessage,
-    addAttachment,
+    addDocumentAttachment,
     removeAttachment,
     loadChats,
   };
