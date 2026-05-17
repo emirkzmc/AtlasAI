@@ -104,7 +104,7 @@ export default function Sidebar({ activeId, setActiveId, isMobileOpen, setIsMobi
                 style={{ height: SECTION_LABEL_HEIGHT }}
               >
                 <span
-                  className="block text-[13px] font-medium text-[#717171] whitespace-nowrap overflow-hidden text-ellipsis w-full transition-opacity duration-[250ms]"
+                  className="block text-[13px] font-medium text-[#717171] whitespace-nowrap overflow-hidden text-ellipsis w-full transition-opacity duration-250"
                   style={{
                     opacity: effectiveIsOpen ? 1 : 0,
                     visibility: effectiveIsOpen ? "visible" : "hidden",
@@ -166,7 +166,7 @@ export default function Sidebar({ activeId, setActiveId, isMobileOpen, setIsMobi
                       </div>
 
                       <span
-                        className={`min-w-0 text-[15px] font-medium pr-3 whitespace-nowrap overflow-hidden text-ellipsis transition-[opacity,max-width] duration-[250ms] ${
+                        className={`min-w-0 text-[15px] font-medium pr-3 whitespace-nowrap overflow-hidden text-ellipsis transition-[opacity,max-width] duration-250 ${
                           isActive ? "text-[#5B4F4B]" : "text-[#737373]"
                         } ${
                           effectiveIsOpen
