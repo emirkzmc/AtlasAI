@@ -1,8 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import toast from "react-hot-toast";
 import { useAuth } from "../../../hooks/useAuth";
+import { useProfileUpdate } from "../../../hooks/useProfileUpdate";
 import { getActivityLogs, getTotalDocuments } from "../../../services/dashboard.service";
 import ActivityHeatmap from "../../../components/dashboard/profile/ActivityHeatmap";
 import ProfileAvatar from "../../../components/dashboard/profile/ProfileAvatar";
+import EditableProfileInfoCard from "../../../components/dashboard/profile/EditableProfileInfoCard";
+import EmailProfileInfoCard from "../../../components/dashboard/profile/EmailProfileInfoCard";
+import EmailChangeModal from "../../../components/dashboard/profile/EmailChangeModal";
 import { getUserDisplayName } from "../../../utils/userDisplay";
 
 function ProfileInfoCard({ label, value }: { label: string; value: string | number }) {
@@ -34,6 +40,21 @@ export default function ProfilePage() {
   const [totalDocuments, setTotalDocuments] = useState(0);
   const [totalDocumentsLoading, setTotalDocumentsLoading] = useState(true);
   const [photoError, setPhotoError] = useState("");
+
+  // E-posta modal state
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+
+  const {
+    updatingName,
+    nameError,
+    handleNameUpdate,
+    sendingEmailVerification,
+    emailError,
+    emailSuccess,
+    handleEmailChange,
+    resetEmailState,
+    countdown,
+  } = useProfileUpdate();
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -74,6 +95,30 @@ export default function ProfilePage() {
     };
   }, [user?.uid]);
 
+  const handleNameSave = useCallback(
+    async (newName: string): Promise<boolean> => {
+      const success = await handleNameUpdate(newName);
+      if (success) {
+        toast.success("Ad soyad başarıyla güncellendi.");
+      }
+      return success;
+    },
+    [handleNameUpdate]
+  );
+
+  const handleEmailSubmit = useCallback(
+    async (newEmail: string, currentPassword: string): Promise<boolean> => {
+      return handleEmailChange(newEmail, currentPassword);
+    },
+    [handleEmailChange]
+  );
+
+  const handleEmailModalClose = useCallback(() => {
+    setEmailModalOpen(false);
+    // Kısa gecikme ile state sıfırla (kapanma animasyonu bitmeden sıfırlama)
+    setTimeout(resetEmailState, 300);
+  }, [resetEmailState]);
+
   const displayName = getUserDisplayName(user);
   const age = user?.age ?? calcAge(user?.birthDate);
   const ageDisplay = age !== undefined ? String(age) : "--";
@@ -106,8 +151,18 @@ export default function ProfilePage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ProfileInfoCard label="Ad Soyad" value={displayName} />
-        <ProfileInfoCard label="E-Posta" value={user?.email || "-"} />
+        <EditableProfileInfoCard
+          label="Ad Soyad"
+          value={displayName}
+          onSave={handleNameSave}
+          saving={updatingName}
+          error={nameError}
+        />
+        <EmailProfileInfoCard
+          label="E-Posta"
+          value={user?.email || "-"}
+          onEditClick={() => setEmailModalOpen(true)}
+        />
         <ProfileInfoCard label="Yaş" value={ageDisplay} />
         <ProfileInfoCard label="Üyelik Başlangıcı" value={joinedDate} />
       </div>
@@ -123,6 +178,53 @@ export default function ProfilePage() {
         </div>
         <ActivityHeatmap activityData={activityData} loading={activityLoading} days={64} />
       </div>
+
+      {/* E-posta değiştirme modalı */}
+      <EmailChangeModal
+        isOpen={emailModalOpen}
+        onClose={handleEmailModalClose}
+        onSubmit={handleEmailSubmit}
+        sending={sendingEmailVerification}
+        error={emailError}
+        success={emailSuccess}
+        currentEmail={user?.email || ""}
+      />
+
+      <AnimatePresence>
+        {countdown !== null && (
+          <motion.div
+            className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl"
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
+              <div className="w-16 h-16 rounded-full bg-[#E8F5E9] flex items-center justify-center mx-auto mb-5">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#43A047" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-[#1a1a1a] mb-2">E-posta Doğrulandı!</h3>
+              <p className="text-[#737373] text-[15px] mb-6">
+                Hesabınız başarıyla güncellendi. Güvenliğiniz için yeniden giriş yapmanız gerekiyor.
+              </p>
+              <div className="flex items-center justify-center gap-2 text-[#5B4F4B] font-semibold text-lg bg-[#5B4F4B]/10 py-3 rounded-xl">
+                <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                {countdown} saniye içinde yönlendiriliyorsunuz...
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

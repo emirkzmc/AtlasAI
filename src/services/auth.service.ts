@@ -122,6 +122,9 @@ export async function loginWithEmail(
 
     let authUser = await getUserFromFirestore(user.uid);
 
+    // Firebase Auth e-postası her zaman authoritative kaynaktır
+    const authEmail = user.email ?? credentials.email;
+
     if (!authUser) {
       // User document missing - auto-create from Firebase Auth data
       console.error(
@@ -153,6 +156,9 @@ export async function loginWithEmail(
         activityLog: [],
       };
     }
+
+    // Firestore'daki e-posta Firebase Auth ile uyuşmayabilir — Auth kaynağı kullan
+    authUser.email = authEmail;
 
     if (authUser.role === "teacher" && !features.enableTeacherFeatures) {
       await signOut(auth);
@@ -197,7 +203,7 @@ export async function loginWithEmail(
 
     const message = getAuthErrorMessage(error);
     console.error("[loginWithEmail] Login error:", error);
-    throw new Error(message);
+    throw new Error(message, { cause: error });
   }
 }
 
@@ -218,9 +224,11 @@ export async function registerWithEmail(
     const { firstName, lastName } = splitName(credentials.fullName);
     const displayNameValue = credentials.fullName?.trim() ?? "";
 
+    // Firebase Auth normalizes email (e.g. lowercase) — use that as source of truth
+    const normalizedEmail = user.email ?? credentials.email;
     const userData: Record<string, unknown> = {
       uid: user.uid,
-      email: credentials.email,
+      email: normalizedEmail,
       role: credentials.role,
       displayName: displayNameValue,
       activityLog: [],
@@ -245,7 +253,7 @@ export async function registerWithEmail(
 
     const authUser: AuthUser = {
       uid: user.uid,
-      email: credentials.email,
+      email: normalizedEmail,
       role: credentials.role,
       fullName: credentials.fullName,
       firstName,
@@ -261,7 +269,7 @@ export async function registerWithEmail(
   } catch (error: unknown) {
     const message = getAuthErrorMessage(error);
     console.error("[registerWithEmail] Registration error:", error);
-    throw new Error(message);
+    throw new Error(message, { cause: error });
   }
 }
 
@@ -274,9 +282,9 @@ export async function logoutUser(): Promise<void> {
   } catch (error: unknown) {
     console.error("[logoutUser] Sign-out error:", error);
     if (error instanceof Error) {
-      throw new Error(error.message);
+      throw new Error(error.message, { cause: error });
     }
-    throw new Error("Çıkış sırasında beklenmeyen bir hata oluştu.");
+    throw new Error("Çıkış sırasında beklenmeyen bir hata oluştu.", { cause: error });
   }
 }
 
@@ -326,9 +334,9 @@ export async function getUserFromFirestore(
   } catch (error: unknown) {
     console.error("[getUserFromFirestore] Error fetching user document:", error);
     if (error instanceof Error) {
-      throw new Error(error.message);
+      throw new Error(error.message, { cause: error });
     }
-    throw new Error("Kullanıcı verisi alınırken hata oluştu.");
+    throw new Error("Kullanıcı verisi alınırken hata oluştu.", { cause: error });
   }
 }
 
@@ -352,7 +360,7 @@ export async function resendVerificationEmail(
   } catch (error: unknown) {
     const message = getAuthErrorMessage(error);
     console.error("[resendVerificationEmail] Error:", error);
-    throw new Error(message);
+    throw new Error(message, { cause: error });
   }
 }
 
@@ -365,7 +373,7 @@ export async function resetPassword(email: string): Promise<void> {
   } catch (error: unknown) {
     const message = getAuthErrorMessage(error);
     console.error("[resetPassword] Error:", error);
-    throw new Error(message);
+    throw new Error(message, { cause: error });
   }
 }
 
