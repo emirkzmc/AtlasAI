@@ -19,14 +19,15 @@ import {
   deleteObject,
   StorageError,
 } from "firebase/storage";
-import { app } from "./firebase.config";
+import { app, storageApp } from "./firebase.config";
 import { features } from "../config/features";
 import type { IDocument } from "../components/docs/types";
 import * as pdfjs from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
+import JSZip from "jszip";
 
 const db = getFirestore(app);
-const storage = getStorage(app);
+const storage = getStorage(storageApp);
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const MAX_EXTRACTED_TEXT_CHARS = 120_000;
@@ -50,6 +51,58 @@ function isTxtFile(file: File): boolean {
 
 function isPdfFile(file: File): boolean {
   return file.type === "application/pdf" || getFileExtension(file.name) === "pdf";
+}
+
+function isDocxFile(file: File): boolean {
+  const ext = getFileExtension(file.name);
+  return file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || ext === "docx" || ext === "doc";
+}
+
+function isPptxFile(file: File): boolean {
+  const ext = getFileExtension(file.name);
+  return file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || ext === "pptx" || ext === "ppt";
+}
+
+async function extractDocxText(file: File): Promise<string> {
+  try {
+    const zip = await JSZip.loadAsync(file);
+    const docXml = await zip.file("word/document.xml")?.async("text");
+    if (!docXml) return "";
+    return docXml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  } catch (err) {
+    console.error("extractDocxText error:", err);
+    return "";
+  }
+}
+
+async function extractPptxText(file: File): Promise<string> {
+  try {
+    const zip = await JSZip.loadAsync(file);
+    let text = "";
+    const slideFiles = Object.keys(zip.files).filter(
+      (name) => name.startsWith("ppt/slides/slide") && name.endsWith(".xml")
+    );
+    
+    slideFiles.sort((a, b) => {
+      const numA = parseInt(a.replace(/[^\d]/g, ""), 10);
+      const numB = parseInt(b.replace(/[^\d]/g, ""), 10);
+      return numA - numB;
+    });
+
+    for (const slideFile of slideFiles) {
+      const slideXml = await zip.file(slideFile)?.async("text");
+      if (slideXml) {
+        const slideText = slideXml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        if (slideText) {
+          text += `\n[Slayt]\n${slideText}`;
+        }
+      }
+    }
+    return text.trim();
+  } catch (err) {
+    console.error("extractPptxText error:", err);
+    return "";
+  }
 }
 
 function clipExtractedText(text: string): { text: string; truncated: boolean } {
@@ -94,6 +147,24 @@ async function extractDocumentContent(file: File): Promise<ExtractedContent> {
 
     if (isPdfFile(file)) {
       const clipped = clipExtractedText(await extractPdfText(file));
+      return {
+        status: clipped.text ? "ready" : "metadata_only",
+        text: clipped.text || undefined,
+        truncated: clipped.truncated,
+      };
+    }
+
+    if (isDocxFile(file)) {
+      const clipped = clipExtractedText(await extractDocxText(file));
+      return {
+        status: clipped.text ? "ready" : "metadata_only",
+        text: clipped.text || undefined,
+        truncated: clipped.truncated,
+      };
+    }
+
+    if (isPptxFile(file)) {
+      const clipped = clipExtractedText(await extractPptxText(file));
       return {
         status: clipped.text ? "ready" : "metadata_only",
         text: clipped.text || undefined,

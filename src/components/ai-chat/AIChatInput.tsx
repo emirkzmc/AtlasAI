@@ -128,14 +128,15 @@ export default function AIChatInput({
         );
     }
 
-    function isTxtOrPdf(document: IDocument): boolean {
-        const ext = document.name.split(".").pop()?.toLowerCase();
+    function isSupportedDoc(document: IDocument): boolean {
+        const ext = document.name.split(".").pop()?.toLowerCase() || "";
         const type = document.mimeType || document.type || "";
-        return type === "text/plain" || type === "application/pdf" || ext === "txt" || ext === "pdf";
+        const allowedExtensions = ["pdf", "txt", "pptx", "ppt", "docx", "doc", "jpg", "jpeg", "png"];
+        return allowedExtensions.includes(ext) || type.startsWith("image/") || type === "text/plain" || type === "application/pdf" || type === "application/vnd.openxmlformats-officedocument.presentationml.presentation";
     }
 
     function getReadabilityLabel(document: IDocument): string {
-        if (!isTxtOrPdf(document)) return "Destek yok";
+        if (!isSupportedDoc(document)) return "Destek yok";
         if (hasDocumentText(document)) return "Okunabilir";
         if (hasDocumentFileAccess(document)) return "Dosyadan oku";
         return "İçerik yok";
@@ -198,14 +199,14 @@ export default function AIChatInput({
                         {documentPickerOpen && (
                             <>
                                 <div
-                                    className="fixed inset-0 z-[190]"
+                                    className="fixed inset-0 z-190"
                                     onClick={() => setDocumentPickerOpen(false)}
                                     aria-hidden
                                 />
                                 {documentPickerRect &&
                                     createPortal(
                                         <div
-                                            className="fixed z-[200] w-[360px] max-w-[calc(100vw-24px)] rounded-2xl border border-[#E5E5E5] bg-white shadow-xl overflow-hidden"
+                                            className="fixed z-200 w-[360px] max-w-[calc(100vw-24px)] rounded-2xl border border-[#E5E5E5] bg-white shadow-xl overflow-hidden"
                                             style={{
                                                 left: Math.max(
                                                     12,
@@ -294,14 +295,14 @@ export default function AIChatInput({
                             {dropdownOpen && (
                                 <>
                                     <div
-                                        className="fixed inset-0 z-[190]"
+                                        className="fixed inset-0 z-190"
                                         onClick={() => setDropdownOpen(false)}
                                         aria-hidden
                                     />
                                     {dropdownRect &&
                                         createPortal(
                                             <ul
-                                                className="fixed z-[200] bg-white rounded-xl shadow-lg border border-[#E5E5E5] py-1 min-w-[220px] list-none m-0"
+                                                className="fixed z-200 bg-white rounded-xl shadow-lg border border-[#E5E5E5] py-1 min-w-[220px] list-none m-0"
                                                 style={{
                                                     left: Math.max(
                                                         12,

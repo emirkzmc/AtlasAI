@@ -22,7 +22,7 @@ import {
   titleFromMessage,
   updateChatMeta,
 } from "../services/aiChat.service";
-import { app } from "../services/firebase.config";
+import { app, storageApp } from "../services/firebase.config";
 import { streamGeminiChat, type GeminiContentPart, type GeminiPart } from "../services/gemini.service";
 import { fetchDocuments } from "../services/docs.service";
 import type { IDocument } from "../components/docs/types";
@@ -46,9 +46,10 @@ interface NormalizedDocument {
   extension: string;
   isTxt: boolean;
   isPdf: boolean;
+  isPptx: boolean;
 }
 
-const storage = getStorage(app);
+const storage = getStorage(storageApp);
 
 function getDocumentExtension(documentName: string): string {
   return documentName.split(".").pop()?.toLowerCase() ?? "";
@@ -60,6 +61,7 @@ function getDocumentMimeType(documentName: string, document: IDocument): string 
   if (document.type) return document.type;
   if (ext === "pdf") return "application/pdf";
   if (ext === "txt") return "text/plain";
+  if (ext === "pptx") return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
   return ext || "unknown";
 }
 
@@ -95,6 +97,7 @@ function normalizeDocument(document: IDocument): NormalizedDocument {
     extension,
     isTxt: mimeType === "text/plain" || extension === "txt",
     isPdf: mimeType === "application/pdf" || extension === "pdf",
+    isPptx: mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || extension === "pptx",
   };
 }
 
@@ -158,6 +161,7 @@ export function useAiChat(isOpen: boolean) {
 
   const loadChats = useCallback(async () => {
     if (authLoading || !uid) return;
+    await Promise.resolve(); // Defer state update to avoid sync setState in effect warning
     setIsLoadingChats(true);
     setError(null);
     try {
@@ -177,6 +181,7 @@ export function useAiChat(isOpen: boolean) {
 
   const loadDocuments = useCallback(async () => {
     if (authLoading || !uid) return;
+    await Promise.resolve(); // Defer state update
     setIsLoadingDocuments(true);
     try {
       const list = await fetchDocuments(uid);
@@ -196,6 +201,7 @@ export function useAiChat(isOpen: boolean) {
   const loadMessages = useCallback(
     async (chatId: string) => {
       if (authLoading || !uid) return;
+      await Promise.resolve(); // Defer state update
       setIsLoadingMessages(true);
       setError(null);
       try {
@@ -278,9 +284,14 @@ export function useAiChat(isOpen: boolean) {
       return;
     }
 
-    if (!normalized.isTxt && !normalized.isPdf) {
+    const allowedExtensions = ["pdf", "txt", "pptx", "ppt", "docx", "doc", "jpg", "jpeg", "png"];
+    const isSupportedDoc = allowedExtensions.includes(normalized.extension) || 
+                           normalized.mimeType.startsWith("image/") || 
+                           normalized.isTxt || normalized.isPdf || normalized.isPptx;
+
+    if (!isSupportedDoc) {
       console.warn("[AtlasAI Document] Unsupported readable type", normalized);
-      setError("Bu dokümanın içeriği şu anda okunamıyor. Lütfen TXT veya PDF formatında bir doküman seçin.");
+      setError("Bu dokümanın içeriği şu anda okunamıyor. Lütfen desteklenen formatlarda (PDF, PPTX, DOCX, TXT, resim) bir doküman seçin.");
       return;
     }
 
@@ -346,12 +357,22 @@ export function useAiChat(isOpen: boolean) {
           { id: normalized.id, text: `--- ${normalized.name} ---\n${clipped}` },
         ]);
       } else {
+        const isOfficeDoc = normalized.isPptx || 
+                            normalized.extension === "docx" || 
+                            normalized.extension === "doc" || 
+                            normalized.mimeType.includes("officedocument");
+                            
+        if (isOfficeDoc) {
+          setError("Bu ofis dosyasının (PPTX/DOCX) çıkarılmış bir metni bulunamadı. Lütfen eski kaydı silip dosyayı Dokümanlarım sayfasından YENİDEN YÜKLEYİN.");
+          return;
+        }
+
         const base64 = await arrayBufferToBase64(await response.arrayBuffer());
         setPendingDocumentContexts((prev) => [
           ...prev,
           {
             id: normalized.id,
-            part: { inlineData: { mimeType: "application/pdf", data: base64 } },
+            part: { inlineData: { mimeType: normalized.mimeType, data: base64 } },
           },
         ]);
       }
@@ -363,7 +384,7 @@ export function useAiChat(isOpen: boolean) {
         name: normalized.name,
         error: err,
       });
-      setError("Bu dokümanın içeriği şu anda okunamıyor. Lütfen TXT veya PDF formatında bir doküman seçin.");
+      setError("Bu dokümanın içeriği şu anda okunamıyor. Lütfen desteklenen formatlarda (PDF, PPTX, DOCX, TXT, resim) bir doküman seçin.");
     }
   }, [pendingAttachments]);
 

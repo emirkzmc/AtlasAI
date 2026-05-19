@@ -25,6 +25,7 @@ interface UseDocsReturn {
 
 export function useDocs(): UseDocsReturn {
   const { user } = useAuth();
+  const uid = user?.uid;
   const [documents, setDocuments] = useState<IDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -34,18 +35,18 @@ export function useDocs(): UseDocsReturn {
 
   // Fetch on mount / user change
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!uid) return;
 
     setIsLoading(true);
-    fetchDocuments(user.uid)
+    fetchDocuments(uid)
       .then(setDocuments)
       .catch(() => setError("Dokümanlar yüklenirken bir hata oluştu."))
       .finally(() => setIsLoading(false));
-  }, [user?.uid]);
+  }, [uid]);
 
   const upload = useCallback(
     async (files: File[]) => {
-      if (!user?.uid) return;
+      if (!uid) return;
       setIsUploading(true);
       setError(null);
       setUploadInfo(null);
@@ -53,7 +54,7 @@ export function useDocs(): UseDocsReturn {
       try {
         const uploaded: IDocument[] = [];
         for (const file of files) {
-          const uploadedDoc = await uploadDocument(user.uid, file, (pct) => {
+          const uploadedDoc = await uploadDocument(uid, file, (pct) => {
             setUploadProgress(pct);
           });
           uploaded.push(uploadedDoc);
@@ -83,26 +84,26 @@ export function useDocs(): UseDocsReturn {
         setUploadProgress(0);
       }
     },
-    [user?.uid]
+    [uid]
   );
 
   const remove = useCallback(
     async (id: string, storagePath: string | null) => {
-      if (!user?.uid) return;
+      if (!uid) return;
       setError(null);
 
       // Optimistic update
       setDocuments((prev) => prev.filter((d) => d.id !== id));
 
       try {
-        await deleteDocument(user.uid, id, storagePath);
+        await deleteDocument(uid, id, storagePath);
       } catch {
         setError("Dosya silinirken bir hata oluştu.");
         // Re-fetch to restore state on failure
-        fetchDocuments(user.uid).then(setDocuments).catch(() => null);
+        fetchDocuments(uid).then(setDocuments).catch(() => null);
       }
     },
-    [user?.uid]
+    [uid]
   );
 
   const open = useCallback((url: string | null) => {

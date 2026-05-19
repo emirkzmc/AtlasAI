@@ -58,25 +58,50 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user?.uid) return;
-    setActivityLoading(true);
+
+    let cancelled = false;
+
+    // Use a microtask to defer the loading state update, 
+    // avoiding the synchronous setState warning in the effect body.
+    Promise.resolve().then(() => {
+      if (!cancelled) setActivityLoading(true);
+    });
+
     getActivityLogs(user.uid, 64)
-      .then(setActivityData)
-      .catch((err) => {
-        console.error("[ProfilePage] activity logs error:", err);
-        setActivityData({});
+      .then((data) => {
+        if (!cancelled) setActivityData(data);
       })
-      .finally(() => setActivityLoading(false));
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("[ProfilePage] activity logs error:", err);
+          setActivityData({});
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?.uid]);
 
   useEffect(() => {
     if (!user?.uid) {
-      setTotalDocuments(0);
-      setTotalDocumentsLoading(false);
+      Promise.resolve().then(() => {
+        setTotalDocuments(0);
+        setTotalDocumentsLoading(false);
+      });
       return;
     }
 
     let cancelled = false;
-    setTotalDocumentsLoading(true);
+
+    // Use a microtask to defer the loading state update, 
+    // avoiding the synchronous setState warning in the effect body.
+    Promise.resolve().then(() => {
+      if (!cancelled) setTotalDocumentsLoading(true);
+    });
 
     getTotalDocuments(user.uid)
       .then((count) => {
@@ -129,6 +154,42 @@ export default function ProfilePage() {
     ? "-- Toplam Doküman"
     : `Toplam Doküman: ${totalDocuments}`;
 
+  let currentStreak = 0;
+  if (activityData && Object.keys(activityData).length > 0) {
+    const dates = Object.keys(activityData)
+      .filter((dateStr) => activityData[dateStr] > 0)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      
+    if (dates.length > 0) {
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const toYMD = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      };
+      
+      const todayStr = toYMD(today);
+      const yesterdayStr = toYMD(yesterday);
+      
+      if (dates.includes(todayStr) || dates.includes(yesterdayStr)) {
+        const currentDate = dates.includes(todayStr) ? today : yesterday;
+        for (let i = 0; i < dates.length; i++) {
+          const d = new Date(currentDate);
+          d.setDate(d.getDate() - currentStreak);
+          if (dates.includes(toYMD(d))) {
+            currentStreak++;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8 max-w-[1000px] mx-auto pb-10 w-full">
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 text-center sm:text-left">
@@ -144,7 +205,7 @@ export default function ProfilePage() {
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
             <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Başarı</span>
             <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">{totalDocumentsText}</span>
-            <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">🔥 -- günlük seri</span>
+            <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">🔥 {currentStreak} günlük seri</span>
             <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Soru</span>
           </div>
         </div>
@@ -193,7 +254,7 @@ export default function ProfilePage() {
       <AnimatePresence>
         {countdown !== null && (
           <motion.div
-            className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]"
+            className="fixed inset-0 z-2000 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

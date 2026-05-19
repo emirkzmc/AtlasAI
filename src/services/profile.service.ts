@@ -12,11 +12,11 @@ import {
   EmailAuthProvider,
 } from "firebase/auth";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { app } from "./firebase.config";
+import { app, storageApp } from "./firebase.config";
 import { features } from "../config/features";
 
 const db = getFirestore(app);
-const storage = getStorage(app);
+const storage = getStorage(storageApp);
 
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png"];
 const MAX_BYTES = 1 * 1024 * 1024;

@@ -93,7 +93,7 @@ const DocUploader: React.FC<DocUploaderProps> = ({
               Doküman yüklemek için tıklayın veya sürükleyip bırakın
             </h3>
             <p className="text-gray-500 text-sm">
-              PDF, DOCX, JPG veya PNG formatlarında dosyalar desteklenir
+              PDF, PPTX, TXT, DOCX, JPG veya PNG formatlarında dosyalar desteklenir
             </p>
           </>
         )}
@@ -102,6 +102,7 @@ const DocUploader: React.FC<DocUploaderProps> = ({
           className="hidden"
           ref={fileInputRef}
           onChange={handleFileChange}
+          accept=".pdf,.pptx,.txt,.docx,.doc,.jpg,.jpeg,.png"
           multiple
         />
       </div>
