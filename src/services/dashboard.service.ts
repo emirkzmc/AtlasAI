@@ -39,8 +39,11 @@ function getDayLabel(dateKey: string): string {
 export interface DashboardStats {
   totalQuestionsGenerated: number;
   totalQuestionsSolved: number;
+  totalQuestionsAnswered: number;
   totalCorrectAnswers: number;
   totalWrongAnswers: number;
+  totalBlankAnswers: number;
+  averageSuccessRate: number;
   currentStreak: number;
   longestStreak: number;
   lastActiveDateKey: string;
@@ -174,8 +177,11 @@ export async function getDashboardStats(uid: string): Promise<DashboardStats> {
     return {
       totalQuestionsGenerated: 0,
       totalQuestionsSolved: 0,
+      totalQuestionsAnswered: 0,
       totalCorrectAnswers: 0,
       totalWrongAnswers: 0,
+      totalBlankAnswers: 0,
+      averageSuccessRate: 0,
       currentStreak: 0,
       longestStreak: 0,
       lastActiveDateKey: "",
@@ -183,11 +189,26 @@ export async function getDashboardStats(uid: string): Promise<DashboardStats> {
   }
 
   const d = statsDoc.data();
+  const totalQuestionsAnswered =
+    d.totalQuestionsAnswered ?? d.totalQuestionsSolved ?? d.totalAnsweredQuestions ?? 0;
+  const totalCorrectAnswers = d.totalCorrectAnswers ?? d.correctAnswers ?? 0;
+  const totalWrongAnswers = d.totalWrongAnswers ?? d.wrongAnswers ?? 0;
+  const totalBlankAnswers = d.totalBlankAnswers ?? d.blankAnswers ?? 0;
+  const averageSuccessRate =
+    d.averageSuccessRate ??
+    d.successRate ??
+    (totalQuestionsAnswered > 0
+      ? Math.round((totalCorrectAnswers / totalQuestionsAnswered) * 100)
+      : 0);
+
   return {
     totalQuestionsGenerated: d.totalQuestionsGenerated ?? 0,
-    totalQuestionsSolved: d.totalQuestionsSolved ?? 0,
-    totalCorrectAnswers: d.totalCorrectAnswers ?? 0,
-    totalWrongAnswers: d.totalWrongAnswers ?? 0,
+    totalQuestionsSolved: d.totalQuestionsSolved ?? totalQuestionsAnswered,
+    totalQuestionsAnswered,
+    totalCorrectAnswers,
+    totalWrongAnswers,
+    totalBlankAnswers,
+    averageSuccessRate,
     currentStreak: d.currentStreak ?? 0,
     longestStreak: d.longestStreak ?? 0,
     lastActiveDateKey: d.lastActiveDateKey ?? "",

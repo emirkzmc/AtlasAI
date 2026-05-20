@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { AiChatMessage } from "../../types/aiChat.types";
-import TypewriterText from "./TypewriterText";
 import LoadingDots from "./LoadingDots";
+import MarkdownMessage from "./MarkdownMessage";
 
 type AIChatMessageListProps = {
   messages: AiChatMessage[];
@@ -76,7 +76,7 @@ export default function AIChatMessageList({
               }`}
             >
               {msg.role === "model" ? (
-                <TypewriterText text={msg.content} className="text-[#1a1a1a]" />
+                <MarkdownMessage content={msg.content} />
               ) : (
                 msg.content
               )}
@@ -96,7 +96,7 @@ export default function AIChatMessageList({
       {streamingContent && (
         <div className="flex justify-start">
           <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 text-[15px] bg-white text-[#1a1a1a] shadow-sm border border-[#E8E8E8] leading-relaxed whitespace-pre-wrap">
-            <TypewriterText text={streamingContent} live className="text-[#1a1a1a]" />
+            <MarkdownMessage content={streamingContent} live />
           </div>
         </div>
       )}

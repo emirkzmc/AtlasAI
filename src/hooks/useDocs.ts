@@ -37,11 +37,24 @@ export function useDocs(): UseDocsReturn {
   useEffect(() => {
     if (!uid) return;
 
-    setIsLoading(true);
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (!cancelled) setIsLoading(true);
+    }, 0);
     fetchDocuments(uid)
-      .then(setDocuments)
-      .catch(() => setError("Dokümanlar yüklenirken bir hata oluştu."))
-      .finally(() => setIsLoading(false));
+      .then((docs) => {
+        if (!cancelled) setDocuments(docs);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Dokümanlar yüklenirken bir hata oluştu.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [uid]);
 
   const upload = useCallback(

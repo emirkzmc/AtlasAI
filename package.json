@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.0.1 --port 3500",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -25,7 +25,9 @@
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.5",
     "react-hot-toast": "^2.6.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.14.2",
+    "remark-gfm": "^4.0.1",
     "tailwindcss": "^4.2.4"
   },
   "devDependencies": {

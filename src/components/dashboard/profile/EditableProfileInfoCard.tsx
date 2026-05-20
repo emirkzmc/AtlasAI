@@ -25,7 +25,11 @@ export default function EditableProfileInfoCard({
 
   // Dışarıdan gelen value değişince draft'ı güncelle
   useEffect(() => {
-    if (!editing) setDraft(value);
+    if (editing) return;
+    const timeoutId = window.setTimeout(() => {
+      setDraft(value);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [value, editing]);
 
   // Düzenleme moduna geçince inputa odaklan

@@ -1,3 +1,5 @@
+import type { AiChatMode, QuizContextInfo, QuizPayload } from "./quiz.types";
+
 export type GeminiModelId =
   | "gemini-2.5-flash"
   | "gemini-2.5-pro"
@@ -20,12 +22,18 @@ export interface AiChatMessage {
   content: string;
   createdAt: Date;
   attachments?: ChatAttachmentMeta[];
+  metadata?: {
+    chatMode?: AiChatMode;
+    quiz?: QuizPayload;
+    quizContext?: QuizContextInfo;
+  };
 }
 
 export interface AiChatSummary {
   id: string;
   title: string;
   model: GeminiModelId;
+  mode?: AiChatMode;
   createdAt: Date;
   updatedAt: Date;
 }

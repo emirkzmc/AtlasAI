@@ -44,13 +44,13 @@ function PerformanceStatCard({
 
 export default function PerformancePage() {
   const { data, loading, error } = usePerformanceData();
-  const { summary, monthlyTrend, documents } = data;
+  const { summary, dailyTrend, documents } = data;
   const correct = summary.correct ?? 0;
   const wrong = summary.wrong ?? 0;
   const blank = summary.blank ?? 0;
   const answeredTotal = correct + wrong + blank;
   const hasDistributionData = answeredTotal > 0;
-  const hasMonthlyTrend = monthlyTrend.length > 0;
+  const hasDailyTrend = dailyTrend.length > 0;
 
   const distributionData = {
     labels: ["Doğru", "Yanlış", "Boş"],
@@ -83,11 +83,11 @@ export default function PerformancePage() {
     },
   };
 
-  const monthlyTrendData = {
-    labels: monthlyTrend.map((item) => item.month),
+  const dailyTrendData = {
+    labels: dailyTrend.map((item) => item.dayLabel),
     datasets: [
       {
-        data: monthlyTrend.map((item) => item.value),
+        data: dailyTrend.map((item) => item.value),
         borderColor: "#1F4D26",
         backgroundColor: "rgba(31, 157, 73, 0.08)",
         pointBackgroundColor: "#1F4D26",
@@ -101,7 +101,7 @@ export default function PerformancePage() {
     ],
   };
 
-  const monthlyTrendOptions: ChartOptions<"line"> = {
+  const dailyTrendOptions: ChartOptions<"line"> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -200,15 +200,15 @@ export default function PerformancePage() {
 
         <section className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-6 min-h-[320px] flex flex-col">
           <h3 className="text-[11px] font-semibold text-[#737373] uppercase tracking-wide mb-5">
-            Aylık Başarı Trendi
+            Günlük Başarı Trendi
           </h3>
-          {hasMonthlyTrend ? (
+          {hasDailyTrend ? (
             <div className="h-[245px]">
-              <Line data={monthlyTrendData} options={monthlyTrendOptions} />
+              <Line data={dailyTrendData} options={dailyTrendOptions} />
             </div>
           ) : (
             <div className="h-[245px] flex items-center justify-center text-[14px] text-[#999]">
-              Henüz aylık başarı verisi yok
+              Henüz günlük başarı verisi yok
             </div>
           )}
         </section>

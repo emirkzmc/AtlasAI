@@ -18,16 +18,28 @@ export function usePerformanceData() {
   }, []);
 
   useEffect(() => {
+    const handleQuizSaved = () => refresh();
+    window.addEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+    return () => window.removeEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+  }, [refresh]);
+
+  useEffect(() => {
     if (!user?.uid) {
-      setData(getEmptyPerformanceData());
-      setLoading(false);
-      setError(false);
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setData(getEmptyPerformanceData());
+        setLoading(false);
+        setError(false);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
     let cancelled = false;
-    setLoading(true);
-    setError(false);
+    const stateTimeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        setLoading(true);
+        setError(false);
+      }
+    }, 0);
 
     fetchPerformanceData(user.uid)
       .then((performanceData) => {
@@ -46,6 +58,7 @@ export function usePerformanceData() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(stateTimeoutId);
     };
   }, [user?.uid, refreshKey]);
 

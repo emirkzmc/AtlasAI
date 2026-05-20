@@ -5,7 +5,6 @@ import { useAuth } from "./useAuth";
 import { DEFAULT_GEMINI_MODEL } from "../constants/aiChat.constants";
 import {
   AI_CHAT_MAX_FILE_BYTES,
-  ATLAS_AI_SYSTEM_INSTRUCTION,
 } from "../constants/aiChat.constants";
 import type {
   AiChatMessage,
@@ -13,6 +12,14 @@ import type {
   ChatAttachmentMeta,
   GeminiModelId,
 } from "../types/aiChat.types";
+import type {
+  AiChatMode,
+  QuizContextInfo,
+  QuizPayload,
+  QuizResult,
+  QuizSaveStatus,
+  QuizSourceType,
+} from "../types/quiz.types";
 import {
   createChat,
   deleteChat as deleteStoredChat,
@@ -23,9 +30,25 @@ import {
   updateChatMeta,
 } from "../services/aiChat.service";
 import { app, storageApp } from "../services/firebase.config";
-import { streamGeminiChat, type GeminiContentPart, type GeminiPart } from "../services/gemini.service";
+import {
+  generateGeminiContent,
+  streamGeminiChat,
+  type GeminiContentPart,
+  type GeminiPart,
+} from "../services/gemini.service";
 import { fetchDocuments } from "../services/docs.service";
 import type { IDocument } from "../components/docs/types";
+import {
+  buildLessonSystemInstruction,
+  buildTestSystemInstruction,
+  buildTestUserPrompt,
+} from "../services/ai/buildPrompt";
+import { parseQuizResponse } from "../services/quiz/quizParser";
+import {
+  calculateQuizResult,
+  type QuizSelectionMap,
+} from "../services/quiz/quizStats";
+import { saveQuizAttempt } from "../services/quizAttempts.service";
 
 type PendingDocumentContext = {
   id: string;
@@ -101,6 +124,31 @@ function normalizeDocument(document: IDocument): NormalizedDocument {
   };
 }
 
+function buildQuizContextMessage(
+  documentTitle: string | null,
+  questionCount: number
+): string {
+  if (documentTitle) {
+    return `${documentTitle} hakkında ${questionCount} soru hazırladım. Başarılar dilerim.`;
+  }
+
+  return `İstediğin konu hakkında ${questionCount} soru hazırladım. Başarılar dilerim.`;
+}
+
+function findStoredQuiz(messages: AiChatMessage[]) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const metadata = messages[index]?.metadata;
+    if (metadata?.quiz) {
+      return {
+        quiz: metadata.quiz,
+        context: metadata.quizContext ?? null,
+      };
+    }
+  }
+
+  return null;
+}
+
 async function resolveDocumentUrl(document: NormalizedDocument): Promise<string | null> {
   if (document.downloadUrl) {
     console.debug("[AtlasAI Document] Using downloadURL", {
@@ -146,6 +194,16 @@ export function useAiChat(isOpen: boolean) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [selectedModel, setSelectedModel] = useState<GeminiModelId>(DEFAULT_GEMINI_MODEL);
+  const [chatMode, setChatModeState] = useState<AiChatMode>("lesson");
+  const [lastTestPrompt, setLastTestPrompt] = useState("");
+  const [activeQuiz, setActiveQuiz] = useState<QuizPayload | null>(null);
+  const [activeQuizContext, setActiveQuizContext] = useState<QuizContextInfo | null>(null);
+  const [activeQuizDocumentTitle, setActiveQuizDocumentTitle] = useState<string | null>(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [quizAnswers, setQuizAnswers] = useState<QuizSelectionMap>({});
+  const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
+  const [quizSaveStatus, setQuizSaveStatus] = useState<QuizSaveStatus>("idle");
+  const [quizSaveError, setQuizSaveError] = useState<string | null>(null);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
@@ -158,6 +216,22 @@ export function useAiChat(isOpen: boolean) {
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  const quizSaveRef = useRef<string | null>(null);
+  const wasOpenRef = useRef(false);
+  const isChatModeLocked = Boolean(activeChatId || messages.length > 0 || activeQuiz || activeQuizContext || isSending);
+
+  const resetQuizState = useCallback(() => {
+    setLastTestPrompt("");
+    setActiveQuiz(null);
+    setActiveQuizContext(null);
+    setActiveQuizDocumentTitle(null);
+    setCurrentQuestionIndex(0);
+    setQuizAnswers({});
+    setQuizResult(null);
+    setQuizSaveStatus("idle");
+    setQuizSaveError(null);
+    quizSaveRef.current = null;
+  }, []);
 
   const loadChats = useCallback(async () => {
     if (authLoading || !uid) return;
@@ -176,7 +250,11 @@ export function useAiChat(isOpen: boolean) {
   }, [authLoading, uid]);
 
   useEffect(() => {
-    if (isOpen && !authLoading && uid) void loadChats();
+    if (!isOpen || authLoading || !uid) return;
+    const timeoutId = window.setTimeout(() => {
+      void loadChats();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [isOpen, authLoading, uid, loadChats]);
 
   const loadDocuments = useCallback(async () => {
@@ -195,8 +273,31 @@ export function useAiChat(isOpen: boolean) {
   }, [authLoading, uid]);
 
   useEffect(() => {
-    if (isOpen && !authLoading && uid) void loadDocuments();
+    if (!isOpen || authLoading || !uid) return;
+    const timeoutId = window.setTimeout(() => {
+      void loadDocuments();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [isOpen, authLoading, uid, loadDocuments]);
+
+  useEffect(() => {
+    if (isOpen) return;
+    const timeoutId = window.setTimeout(() => {
+      resetQuizState();
+      setStreamingContent("");
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [isOpen, resetQuizState]);
+
+  const setChatMode = useCallback(
+    (mode: AiChatMode) => {
+      if (activeChatId || messages.length > 0 || activeQuiz || isSending) return;
+      setChatModeState(mode);
+      setError(null);
+      setStreamingContent("");
+    },
+    [activeChatId, activeQuiz, isSending, messages.length]
+  );
 
   const loadMessages = useCallback(
     async (chatId: string) => {
@@ -208,7 +309,24 @@ export function useAiChat(isOpen: boolean) {
         const msgs = await fetchChatMessages(uid, chatId);
         setMessages(msgs);
         const chat = chats.find((c) => c.id === chatId);
-        if (chat) setSelectedModel(chat.model);
+        if (chat) {
+          setSelectedModel(chat.model);
+          setChatModeState(chat.mode ?? "lesson");
+        }
+        const storedQuiz = findStoredQuiz(msgs);
+        if (storedQuiz) {
+          setChatModeState("test");
+          setActiveQuiz(storedQuiz.quiz);
+          setActiveQuizContext(storedQuiz.context);
+          setActiveQuizDocumentTitle(storedQuiz.context?.documentTitle ?? null);
+          setLastTestPrompt(storedQuiz.context?.prompt ?? "");
+          setCurrentQuestionIndex(0);
+          setQuizAnswers({});
+          setQuizResult(null);
+          setQuizSaveStatus("idle");
+          setQuizSaveError(null);
+          quizSaveRef.current = null;
+        }
       } catch (err) {
         console.error("[useAiChat] loadMessages:", err);
         setError(err instanceof Error ? err.message : "Mesajlar yüklenemedi.");
@@ -224,19 +342,34 @@ export function useAiChat(isOpen: boolean) {
     (chatId: string) => {
       setActiveChatId(chatId);
       setStreamingContent("");
+      resetQuizState();
       void loadMessages(chatId);
     },
-    [loadMessages]
+    [loadMessages, resetQuizState]
   );
 
   const startNewChat = useCallback(() => {
     setActiveChatId(null);
     setMessages([]);
+    setChatModeState("lesson");
     setStreamingContent("");
     setPendingAttachments([]);
     setPendingDocumentContexts([]);
     setError(null);
-  }, []);
+    resetQuizState();
+  }, [resetQuizState]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      return;
+    }
+
+    if (!wasOpenRef.current) {
+      wasOpenRef.current = true;
+      startNewChat();
+    }
+  }, [isOpen, startNewChat]);
 
   const deleteChat = useCallback(
     async (chatId: string) => {
@@ -256,6 +389,7 @@ export function useAiChat(isOpen: boolean) {
           setStreamingContent("");
           setPendingAttachments([]);
           setPendingDocumentContexts([]);
+          resetQuizState();
         }
       } catch (err) {
         console.error("[useAiChat] deleteChat:", err);
@@ -264,7 +398,7 @@ export function useAiChat(isOpen: boolean) {
         setDeletingChatId(null);
       }
     },
-    [activeChatId, authLoading, deletingChatId, uid]
+    [activeChatId, authLoading, deletingChatId, resetQuizState, uid]
   );
 
   const addDocumentAttachment = useCallback(async (document: IDocument) => {
@@ -400,10 +534,14 @@ export function useAiChat(isOpen: boolean) {
     });
   }, []);
 
-  const sendMessage = useCallback(
-    async (rawPrompt: string) => {
+  const sendLessonMessage = useCallback(
+    async (
+      rawPrompt: string,
+      options: { preserveQuiz?: boolean } = {}
+    ) => {
       const prompt = rawPrompt.trim();
       if (!prompt || authLoading || !uid || isSending) return;
+      if (!options.preserveQuiz) resetQuizState();
 
       let chatId = activeChatId;
       let persistedChatId: string | null = activeChatId;
@@ -430,7 +568,12 @@ export function useAiChat(isOpen: boolean) {
       try {
         if (!chatId) {
           try {
-            chatId = await createChat(uid, selectedModel, titleFromMessage(prompt));
+            chatId = await createChat(
+              uid,
+              selectedModel,
+              titleFromMessage(prompt),
+              options.preserveQuiz ? chatMode : "lesson"
+            );
             persistedChatId = chatId;
             setActiveChatId(chatId);
             setChats((prev) => [
@@ -438,6 +581,7 @@ export function useAiChat(isOpen: boolean) {
                 id: chatId!,
                 title: titleFromMessage(prompt),
                 model: selectedModel,
+                mode: options.preserveQuiz ? chatMode : "lesson",
                 createdAt: new Date(),
                 updatedAt: new Date(),
               },
@@ -451,7 +595,10 @@ export function useAiChat(isOpen: boolean) {
           }
         } else {
           try {
-            await updateChatMeta(uid, chatId, { model: selectedModel });
+            await updateChatMeta(uid, chatId, {
+              model: selectedModel,
+              mode: options.preserveQuiz ? chatMode : "lesson",
+            });
           } catch (err) {
             console.error("[useAiChat] updateChatMeta:", err);
             setError("Sohbet bilgisi kaydedilemedi, yanıt yine oluşturulacak.");
@@ -495,7 +642,7 @@ export function useAiChat(isOpen: boolean) {
         for await (const chunk of streamGeminiChat(
           selectedModel,
           history,
-          ATLAS_AI_SYSTEM_INSTRUCTION,
+          buildLessonSystemInstruction(),
           abortRef.current.signal
         )) {
           fullReply += chunk;
@@ -529,7 +676,7 @@ export function useAiChat(isOpen: boolean) {
         );
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
-        console.error("[useAiChat] sendMessage:", err);
+        console.error("[useAiChat] sendLessonMessage:", err);
         setError(err instanceof Error ? err.message : "Mesaj gönderilemedi.");
         setStreamingContent("");
       } finally {
@@ -540,12 +687,335 @@ export function useAiChat(isOpen: boolean) {
       uid,
       authLoading,
       activeChatId,
+      chatMode,
       isSending,
       messages,
       pendingAttachments,
       pendingDocumentContexts,
+      resetQuizState,
       selectedModel,
     ]
+  );
+
+  const sendTestMessage = useCallback(
+    async (rawPrompt: string) => {
+      const prompt = rawPrompt.trim();
+      if (!prompt || authLoading || !uid || isSending) return;
+
+      const attachmentSnapshot = [...pendingAttachments];
+      const pendingTexts = pendingDocumentContexts
+        .map((context) => context.text)
+        .filter((text): text is string => Boolean(text));
+      const documentContext = pendingTexts.join("\n\n");
+      const documentPartsSnapshot = pendingDocumentContexts
+        .map((context) => context.part)
+        .filter((part): part is GeminiPart => Boolean(part));
+      const sourceType: QuizSourceType = attachmentSnapshot.length
+        ? "document"
+        : "general";
+      const activeDocument = attachmentSnapshot[0] ?? null;
+      const documentId = sourceType === "document" ? activeDocument?.id ?? null : null;
+      const documentTitle =
+        sourceType === "document" ? activeDocument?.name ?? null : null;
+
+      if (
+        sourceType === "document" &&
+        !documentContext.trim() &&
+        documentPartsSnapshot.length === 0
+      ) {
+        setError(
+          "Seçili dokümanın okunabilir içeriği bulunamadı. Lütfen metni çıkarılmış bir doküman seçin."
+        );
+        return;
+      }
+
+      let chatId = activeChatId;
+      let persistedChatId: string | null = activeChatId;
+
+      resetQuizState();
+      setLastTestPrompt(prompt);
+      setActiveQuizDocumentTitle(documentTitle);
+      setActiveQuizContext({
+        prompt,
+        documentId,
+        documentTitle,
+        documentType: activeDocument?.type ?? activeDocument?.name?.split(".").pop() ?? null,
+        questionCount: 0,
+        assistantMessage: "Sorular hazırlanıyor...",
+        createdAt: new Date(),
+      });
+      setPendingAttachments([]);
+      setPendingDocumentContexts([]);
+      setIsSending(true);
+      setStreamingContent("");
+      setError(null);
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
+
+      try {
+        if (!chatId) {
+          try {
+            chatId = await createChat(
+              uid,
+              selectedModel,
+              titleFromMessage(prompt),
+              "test"
+            );
+            persistedChatId = chatId;
+            setActiveChatId(chatId);
+            setChats((prev) => [
+              {
+                id: chatId!,
+                title: titleFromMessage(prompt),
+                model: selectedModel,
+                mode: "test",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+              ...prev,
+            ]);
+          } catch (err) {
+            console.error("[useAiChat] create test chat:", err);
+            setError("Sohbet kaydedilemedi, test yine oluşturulacak.");
+            chatId = `local-${Date.now()}`;
+            persistedChatId = null;
+          }
+        } else {
+          try {
+            await updateChatMeta(uid, chatId, { model: selectedModel, mode: "test" });
+          } catch (err) {
+            console.error("[useAiChat] update test chat meta:", err);
+            setError("Sohbet bilgisi kaydedilemedi, test yine oluşturulacak.");
+          }
+        }
+
+        let userMsgId = `local-user-${Date.now()}`;
+        if (persistedChatId) {
+          try {
+            userMsgId = await saveMessage(
+              uid,
+              persistedChatId,
+              "user",
+              prompt,
+              attachmentSnapshot.length ? attachmentSnapshot : undefined
+            );
+          } catch (err) {
+            console.error("[useAiChat] save test user message:", err);
+            setError("Mesaj kaydedilemedi, test yine oluşturulacak.");
+          }
+        }
+
+        const userMsg: AiChatMessage = {
+          id: userMsgId,
+          role: "user",
+          content: prompt,
+          createdAt: new Date(),
+          attachments: attachmentSnapshot.length ? attachmentSnapshot : undefined,
+        };
+        setMessages((prev) => [...prev, userMsg]);
+
+        const testPrompt = buildTestUserPrompt({
+          userPrompt: prompt,
+          sourceType,
+          documentId,
+          documentTitle,
+          documentContext,
+        });
+
+        const rawReply = await generateGeminiContent(
+          selectedModel,
+          [
+            {
+              role: "user",
+              parts: [{ text: testPrompt }, ...documentPartsSnapshot],
+            },
+          ],
+          buildTestSystemInstruction(),
+          abortRef.current.signal,
+          { responseMimeType: "application/json" }
+        );
+
+        const parsedQuiz = parseQuizResponse(rawReply);
+        const quiz: QuizPayload = {
+          ...parsedQuiz,
+          sourceType,
+          documentId,
+        };
+        const quizContext: QuizContextInfo = {
+          prompt,
+          documentId,
+          documentTitle,
+          documentType: activeDocument?.type ?? activeDocument?.name?.split(".").pop() ?? null,
+          questionCount: quiz.questions.length,
+          assistantMessage: buildQuizContextMessage(documentTitle, quiz.questions.length),
+          createdAt: new Date(),
+        };
+
+        setActiveQuiz(quiz);
+        setLastTestPrompt(prompt);
+        setCurrentQuestionIndex(0);
+        setQuizAnswers({});
+        setQuizResult(null);
+        setActiveQuizContext(quizContext);
+        setActiveQuizDocumentTitle(documentTitle);
+        setQuizSaveStatus("idle");
+        setQuizSaveError(null);
+        quizSaveRef.current = null;
+
+        const summary =
+          quiz.questions.length > 0
+            ? `Test oluşturuldu: ${quiz.title} (${quiz.questions.length} soru)`
+            : `Test oluşturulamadı: ${quiz.title}`;
+
+        let modelMsgId = `local-model-${Date.now()}`;
+        if (persistedChatId) {
+          try {
+            modelMsgId = await saveMessage(
+              uid,
+              persistedChatId,
+              "model",
+              summary,
+              undefined,
+              {
+                chatMode: "test",
+                quiz,
+                quizContext,
+              }
+            );
+          } catch (err) {
+            console.error("[useAiChat] save test summary:", err);
+          }
+        }
+
+        const modelMsg: AiChatMessage = {
+          id: modelMsgId,
+          role: "model",
+          content: summary,
+          createdAt: new Date(),
+          metadata: {
+            chatMode: "test",
+            quiz,
+            quizContext,
+          },
+        };
+        setMessages((prev) => [...prev, modelMsg]);
+
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === persistedChatId
+              ? { ...c, updatedAt: new Date(), model: selectedModel }
+              : c
+          )
+        );
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+        console.error("[useAiChat] sendTestMessage:", err);
+        setActiveQuiz(null);
+        setError("Test soruları oluşturulamadı. Lütfen tekrar deneyin.");
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [
+      activeChatId,
+      authLoading,
+      isSending,
+      pendingAttachments,
+      pendingDocumentContexts,
+      resetQuizState,
+      selectedModel,
+      uid,
+    ]
+  );
+
+  const saveQuizResult = useCallback(
+    async (result: QuizResult) => {
+      if (!activeQuiz) return;
+
+      if (!uid) {
+        setQuizSaveStatus("error");
+        setQuizSaveError("Test sonucu kaydedilemedi. Lütfen tekrar giriş yapın.");
+        return;
+      }
+
+      if (quizSaveRef.current) return;
+
+      quizSaveRef.current = "saving";
+      setQuizSaveStatus("saving");
+      setQuizSaveError(null);
+
+      try {
+        const attemptId = await saveQuizAttempt({
+          userId: uid,
+          documentId: activeQuiz.documentId,
+          documentTitle: activeQuizDocumentTitle,
+          sourceType: activeQuiz.sourceType,
+          title: activeQuiz.title,
+          result,
+        });
+        quizSaveRef.current = attemptId;
+        setQuizSaveStatus("saved");
+        window.dispatchEvent(
+          new CustomEvent("atlasai:quiz-result-saved", {
+            detail: {
+              userId: uid,
+              documentId: activeQuiz.documentId,
+              resultSummary: result,
+            },
+          })
+        );
+      } catch (err) {
+        console.error("[useAiChat] saveQuizResult:", err);
+        quizSaveRef.current = null;
+        setQuizSaveStatus("error");
+        setQuizSaveError(
+          "Test sonucunuz hesaplandı ancak kaydedilemedi. Lütfen bağlantı veya izin ayarlarını kontrol edin."
+        );
+      }
+    },
+    [activeQuiz, activeQuizDocumentTitle, uid]
+  );
+
+  const answerQuizQuestion = useCallback(
+    (questionId: string, selectedOptionId: string) => {
+      if (quizResult) return;
+      setQuizAnswers((current) => {
+        if (Object.prototype.hasOwnProperty.call(current, questionId)) return current;
+        return {
+          ...current,
+          [questionId]: selectedOptionId,
+        };
+      });
+    },
+    [quizResult]
+  );
+
+  const finishQuiz = useCallback(() => {
+    if (!activeQuiz || quizSaveStatus === "saving" || quizSaveStatus === "saved") return;
+
+    const result = quizResult ?? calculateQuizResult(activeQuiz.questions, quizAnswers);
+    if (!quizResult) setQuizResult(result);
+    void saveQuizResult(result);
+  }, [activeQuiz, quizAnswers, quizResult, quizSaveStatus, saveQuizResult]);
+
+  const askQuizQuestion = useCallback(
+    async (prompt: string) => {
+      if (!prompt.trim()) return;
+      await sendLessonMessage(prompt, { preserveQuiz: true });
+    },
+    [sendLessonMessage]
+  );
+
+  const sendMessage = useCallback(
+    async (rawPrompt: string) => {
+      if (chatMode === "test") {
+        await sendTestMessage(rawPrompt);
+        return;
+      }
+
+      await sendLessonMessage(rawPrompt);
+    },
+    [chatMode, sendLessonMessage, sendTestMessage]
   );
 
   return {
@@ -554,6 +1024,27 @@ export function useAiChat(isOpen: boolean) {
     messages,
     selectedModel,
     setSelectedModel,
+    chatMode,
+    setChatMode,
+    isChatModeLocked,
+    lastTestPrompt,
+    activeQuiz,
+    activeQuizContext,
+    currentQuestionIndex,
+    setCurrentQuestionIndex,
+    quizAnswers,
+    answerQuizQuestion,
+    quizResult,
+    isQuizFinished: Boolean(quizResult),
+    quizSaveStatus,
+    quizSaveError,
+    isSavingQuizResult: quizSaveStatus === "saving",
+    hasSavedQuizResult: quizSaveStatus === "saved",
+    saveQuizResult,
+    finishQuiz,
+    askQuizQuestion,
+    quizContextMessage: activeQuizContext?.assistantMessage ?? "",
+    clearQuiz: resetQuizState,
     isLoadingChats,
     isLoadingMessages,
     deletingChatId,

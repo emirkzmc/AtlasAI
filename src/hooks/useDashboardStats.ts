@@ -84,26 +84,38 @@ export function useDashboardStats(): DashboardData {
   const [totalDocumentsLoading, setTotalDocumentsLoading] = useState(true);
 
   useEffect(() => {
+    const handleQuizSaved = () => refresh();
+    window.addEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+    return () => window.removeEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+  }, [refresh]);
+
+  useEffect(() => {
     if (!user) {
       // Not authenticated – clear all loading states immediately
-      setStatsLoading(false);
-      setDocumentsLoading(false);
-      setActivityLoading(false);
-      setRecentDocsLoading(false);
-      setTotalDocumentsLoading(false);
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setStatsLoading(false);
+        setDocumentsLoading(false);
+        setActivityLoading(false);
+        setRecentDocsLoading(false);
+        setTotalDocumentsLoading(false);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
     let cancelled = false;
     const uid = user.uid;
 
     // Reset all loading flags
-    setStatsLoading(true);
-    setStatsError(false);
-    setDocumentsLoading(true);
-    setActivityLoading(true);
-    setRecentDocsLoading(true);
-    setTotalDocumentsLoading(true);
+    const stateTimeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        setStatsLoading(true);
+        setStatsError(false);
+        setDocumentsLoading(true);
+        setActivityLoading(true);
+        setRecentDocsLoading(true);
+        setTotalDocumentsLoading(true);
+      }
+    }, 0);
 
     // ── Ensure today's activity (non-blocking, doesn't gate other queries) ──
     ensureTodayActivityAndStreak(uid).catch((e) => {
@@ -180,6 +192,7 @@ export function useDashboardStats(): DashboardData {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(stateTimeoutId);
     };
   }, [user, refreshKey]);
 
