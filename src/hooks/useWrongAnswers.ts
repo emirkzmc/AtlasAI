@@ -24,15 +24,21 @@ export function useWrongAnswers() {
 
   useEffect(() => {
     if (!user?.uid) {
-      setItems([]);
-      setLoading(false);
-      setError(false);
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setItems([]);
+        setLoading(false);
+        setError(false);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
     let cancelled = false;
-    setLoading(true);
-    setError(false);
+    const stateTimeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        setLoading(true);
+        setError(false);
+      }
+    }, 0);
 
     fetchWrongAnswers(user.uid)
       .then((wrongAnswers) => {
@@ -51,6 +57,7 @@ export function useWrongAnswers() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(stateTimeoutId);
     };
   }, [user?.uid, refreshKey]);
 

@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function ownsDocument() {
+      return isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.ownerId == request.auth.uid ||
+        resource.data.uid == request.auth.uid
+      );
+    }
+
+    function createsOwnedDocument() {
+      return isSignedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.ownerId == request.auth.uid ||
+        request.resource.data.uid == request.auth.uid
+      );
+    }
+
+    match /users/{uid} {
+      allow read, create, update: if isOwner(uid);
+
+      match /quizAttempts/{attemptId} {
+        allow read, create: if isOwner(uid);
+        allow update: if false;
+      }
+
+      match /stats/{statsId} {
+        allow read, create, update: if isOwner(uid);
+      }
+
+      match /performanceMonthly/{monthId} {
+        allow read, create, update: if isOwner(uid);
+      }
+
+      match /documentStats/{documentId} {
+        allow read, create, update: if isOwner(uid);
+      }
+
+      match /documents/{documentId} {
+        allow read, create, update, delete: if isOwner(uid);
+      }
+
+      match /aiChats/{chatId} {
+        allow read, create, update, delete: if isOwner(uid);
+
+        match /messages/{messageId} {
+          allow read, create, update, delete: if isOwner(uid);
+        }
+      }
+
+      match /activityLogs/{dateId} {
+        allow read, create, update: if isOwner(uid);
+      }
+
+      match /wrongAnswers/{answerId} {
+        allow read, create, update, delete: if isOwner(uid);
+      }
+
+    }
+
+    match /documents/{documentId} {
+      allow read: if ownsDocument();
+      allow create: if createsOwnedDocument();
+      allow update, delete: if ownsDocument();
+    }
+  }
+}

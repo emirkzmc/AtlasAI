@@ -25,11 +25,6 @@ export default function OverviewPage() {
     refresh,
   } = useDashboardStats();
 
-  // ── Display name priority:
-  // 1. Firestore firstName + lastName
-  // 2. Firestore fullName (also covers auth.displayName fallback set on auto-create)
-  // 3. email prefix
-  // 4. "Kullanıcı"
   const displayName = (() => {
     const fn = user?.firstName?.trim();
     const ln = user?.lastName?.trim();
@@ -41,34 +36,37 @@ export default function OverviewPage() {
     return "Kullanıcı";
   })();
 
-  // ── Derived values ────────────────────────────────────────────────────────
+  const correctAnswers = stats?.totalCorrectAnswers ?? 0;
+  const wrongAnswers = stats?.totalWrongAnswers ?? 0;
+  const blankAnswers = stats?.totalBlankAnswers ?? 0;
   const totalAnswered =
-    (stats?.totalCorrectAnswers ?? 0) + (stats?.totalWrongAnswers ?? 0);
+    stats?.totalQuestionsAnswered ??
+    stats?.totalQuestionsSolved ??
+    correctAnswers + wrongAnswers + blankAnswers;
+  const calculatedSuccessRate =
+    totalAnswered > 0 ? Math.round((correctAnswers / totalAnswered) * 100) : 0;
 
-  const successRateValue =
-    statsError
-      ? "--"
-      : statsLoading
+  const successRateValue = statsError
+    ? "--"
+    : statsLoading
       ? ""
       : totalAnswered > 0
-      ? String(Math.round(((stats!.totalCorrectAnswers) / totalAnswered) * 100))
-      : "0";
+        ? String(stats?.averageSuccessRate ?? calculatedSuccessRate)
+        : "0";
 
   const successRateSubtitle =
     totalAnswered === 0
       ? "Henüz soru çözülmedi"
-      : `${stats?.totalCorrectAnswers ?? 0} doğru / ${stats?.totalWrongAnswers ?? 0} yanlış`;
+      : `${correctAnswers} doğru / ${wrongAnswers} yanlış / ${blankAnswers} boş`;
 
-  const solvedValue =
-    statsError ? "--" : statsLoading ? "" : String(stats?.totalQuestionsSolved ?? 0);
+  const solvedValue = statsError ? "--" : statsLoading ? "" : String(totalAnswered);
 
   const solvedSubtitle =
     (stats?.totalQuestionsGenerated ?? 0) > 0
       ? `${stats?.totalQuestionsGenerated} soru üretildi`
       : "Henüz soru çözülmedi";
 
-  const totalDocsValue =
-    totalDocumentsLoading ? "" : String(totalDocuments);
+  const totalDocsValue = totalDocumentsLoading ? "" : String(totalDocuments);
 
   const totalDocsSubtitle =
     totalDocuments === 0
@@ -83,7 +81,6 @@ export default function OverviewPage() {
       ? `En uzun: ${stats?.longestStreak} gün`
       : "Bugün başla!";
 
-  // ── Document delete ───────────────────────────────────────────────────────
   async function handleDelete(id: string, storagePath: string | null) {
     if (!user) return;
     try {
@@ -96,15 +93,12 @@ export default function OverviewPage() {
     }
   }
 
-  // ── Layout is always rendered – no skeleton, no blocking ─────────────────
   return (
     <div className="space-y-6">
-      {/* Greeting */}
       <h2 className="text-[26px] font-bold text-gray-900">
         Merhaba, {displayName}
       </h2>
 
-      {/* ── Stat Cards ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Genel Başarı"
@@ -147,7 +141,6 @@ export default function OverviewPage() {
         />
       </div>
 
-      {/* ── Document Distribution + Activity Chart ─────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <DocumentSuccessDistribution
           documents={documentStats}
@@ -159,7 +152,6 @@ export default function OverviewPage() {
         />
       </div>
 
-      {/* ── Recent Documents – hidden while loading or when empty ─────────── */}
       {!recentDocsLoading && recentDocuments.length > 0 && (
         <RecentDocuments
           documents={recentDocuments}
