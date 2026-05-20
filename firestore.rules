@@ -42,6 +42,10 @@ service cloud.firestore {
         allow read, create, update: if isOwner(uid);
       }
 
+      match /performanceDaily/{dateId} {
+        allow read, create, update: if isOwner(uid);
+      }
+
       match /documentStats/{documentId} {
         allow read, create, update: if isOwner(uid);
       }
@@ -63,6 +67,10 @@ service cloud.firestore {
       }
 
       match /wrongAnswers/{answerId} {
+        allow read, create, update, delete: if isOwner(uid);
+      }
+
+      match /{document=**} {
         allow read, create, update, delete: if isOwner(uid);
       }
 

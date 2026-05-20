@@ -18,6 +18,12 @@ export function usePerformanceData() {
   }, []);
 
   useEffect(() => {
+    const handleQuizSaved = () => refresh();
+    window.addEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+    return () => window.removeEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+  }, [refresh]);
+
+  useEffect(() => {
     if (!user?.uid) {
       const timeoutId = window.setTimeout(() => {
         setData(getEmptyPerformanceData());

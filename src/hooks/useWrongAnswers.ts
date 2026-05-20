@@ -23,6 +23,12 @@ export function useWrongAnswers() {
   }, []);
 
   useEffect(() => {
+    const handleQuizSaved = () => refresh();
+    window.addEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+    return () => window.removeEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+  }, [refresh]);
+
+  useEffect(() => {
     if (!user?.uid) {
       const timeoutId = window.setTimeout(() => {
         setItems([]);
@@ -65,7 +71,8 @@ export function useWrongAnswers() {
     const counts = new Map<string, number>();
 
     items.forEach((item) => {
-      counts.set(item.category, (counts.get(item.category) ?? 0) + 1);
+      const label = item.documentTitle || (item.documentId ? "Bilinmeyen doküman" : "Dokümansız");
+      counts.set(label, (counts.get(label) ?? 0) + 1);
     });
 
     return [

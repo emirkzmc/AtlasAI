@@ -23,9 +23,14 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
     displayName.split(/\s+/)[0] ||
     user?.email?.split("@")[0] ||
     "Kullanıcı";
-  const isLessonMode = chat.chatMode === "lesson";
-  const isEmptyLessonChat =
-    isLessonMode &&
+  const shouldShowQuizWorkspace =
+    chat.chatMode === "test" &&
+    (chat.isSending ||
+      chat.activeQuiz !== null ||
+      chat.quizResult !== null ||
+      chat.activeQuizContext !== null);
+  const shouldShowMessageList = !shouldShowQuizWorkspace;
+  const isEmptyChat =
     chat.messages.length === 0 &&
     !chat.streamingContent &&
     !chat.isSending;
@@ -128,13 +133,13 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
             <div className="flex-1 flex items-center justify-center text-[#737373] text-[14px]">
               Mesajlar yükleniyor...
             </div>
-          ) : isLessonMode ? (
+          ) : shouldShowMessageList ? (
             <AIChatMessageList
               messages={chat.messages}
               streamingContent={chat.streamingContent}
               isSending={chat.isSending}
               userFirstName={firstName}
-              centeredComposer={isEmptyLessonChat ? composer : null}
+              centeredComposer={isEmptyChat ? composer : null}
             />
           ) : (
             <div className="flex-1 min-h-0 overflow-y-auto px-6 md:px-10 pt-4 pb-6">
@@ -161,7 +166,7 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
             </div>
           )}
 
-          {isLessonMode && !isEmptyLessonChat && (
+          {shouldShowMessageList && !isEmptyChat && (
             <AIChatInput
               selectedModel={chat.selectedModel}
               onModelChange={chat.setSelectedModel}

@@ -3,7 +3,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { useAuth } from "../../../hooks/useAuth";
 import { useProfileUpdate } from "../../../hooks/useProfileUpdate";
-import { getActivityLogs, getTotalDocuments } from "../../../services/dashboard.service";
+import {
+  getActivityLogs,
+  getDashboardStats,
+  getTotalDocuments,
+  type DashboardStats,
+} from "../../../services/dashboard.service";
 import ActivityHeatmap from "../../../components/dashboard/profile/ActivityHeatmap";
 import ProfileAvatar from "../../../components/dashboard/profile/ProfileAvatar";
 import EditableProfileInfoCard from "../../../components/dashboard/profile/EditableProfileInfoCard";
@@ -39,6 +44,9 @@ export default function ProfilePage() {
   const [activityLoading, setActivityLoading] = useState(true);
   const [totalDocuments, setTotalDocuments] = useState(0);
   const [totalDocumentsLoading, setTotalDocumentsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
   const [photoError, setPhotoError] = useState("");
 
   // E-posta modal state
@@ -55,6 +63,12 @@ export default function ProfilePage() {
     resetEmailState,
     countdown,
   } = useProfileUpdate();
+
+  useEffect(() => {
+    const handleQuizSaved = () => setStatsRefreshKey((key) => key + 1);
+    window.addEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+    return () => window.removeEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+  }, []);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -120,6 +134,38 @@ export default function ProfilePage() {
     };
   }, [user?.uid]);
 
+  useEffect(() => {
+    if (!user?.uid) {
+      const timeoutId = window.setTimeout(() => {
+        setStats(null);
+        setStatsLoading(false);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    let cancelled = false;
+    const stateTimeoutId = window.setTimeout(() => {
+      if (!cancelled) setStatsLoading(true);
+    }, 0);
+
+    getDashboardStats(user.uid)
+      .then((data) => {
+        if (!cancelled) setStats(data);
+      })
+      .catch((err) => {
+        console.error("[ProfilePage] stats error:", err);
+        if (!cancelled) setStats(null);
+      })
+      .finally(() => {
+        if (!cancelled) setStatsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(stateTimeoutId);
+    };
+  }, [user?.uid, statsRefreshKey]);
+
   const handleNameSave = useCallback(
     async (newName: string): Promise<boolean> => {
       const success = await handleNameUpdate(newName);
@@ -153,6 +199,13 @@ export default function ProfilePage() {
   const totalDocumentsText = totalDocumentsLoading
     ? "-- Toplam Doküman"
     : `Toplam Doküman: ${totalDocuments}`;
+  const totalAnswered = stats?.totalQuestionsAnswered ?? stats?.totalQuestionsSolved ?? 0;
+  const totalCorrect = stats?.totalCorrectAnswers ?? 0;
+  const generalSuccessRate =
+    totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+  const successText = statsLoading
+    ? "Genel Başarı Yüzdesi: --"
+    : `Genel Başarı Yüzdesi: %${generalSuccessRate}`;
 
   let currentStreak = 0;
   if (activityData && Object.keys(activityData).length > 0) {
@@ -203,7 +256,7 @@ export default function ProfilePage() {
           <h2 className="text-[28px] sm:text-[32px] font-semibold text-[#1a1a1a] mb-1">{displayName}</h2>
           <p className="text-[15px] sm:text-[16px] text-[#737373] mb-5">Üye oldu: {joinedDate}</p>
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
-            <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Başarı</span>
+            <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">{successText}</span>
             <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">{totalDocumentsText}</span>
             <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">🔥 {currentStreak} günlük seri</span>
             <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Soru</span>

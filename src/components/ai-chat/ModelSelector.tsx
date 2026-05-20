@@ -42,7 +42,7 @@ export default function ModelSelector({
         type="button"
         onClick={() => setOpen((current) => !current)}
         disabled={disabled}
-        className="flex h-10 min-w-[180px] max-w-[220px] items-center justify-between gap-2 rounded-[12px] border border-white/25 bg-white/18 px-3.5 text-[12px] font-medium text-white shadow-sm backdrop-blur-md transition-colors hover:bg-white/28 focus:outline-none focus:ring-2 focus:ring-white/25 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-10 min-w-[180px] max-w-[220px] items-center justify-between gap-2 rounded-lg border border-white/30 bg-transparent px-3.5 text-[12px] font-medium text-white transition-colors hover:border-white/40 hover:bg-[#8B6B6B]/45 focus:outline-none focus:ring-2 focus:ring-white/20 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
       >
         <span className="truncate">{modelLabel}</span>
         <svg
@@ -65,7 +65,7 @@ export default function ModelSelector({
           {rect &&
             createPortal(
               <ul
-                className="fixed z-200 m-0 min-w-[220px] list-none rounded-[12px] border border-[#E5E5E5] bg-white py-1 shadow-lg"
+                className="fixed z-200 m-0 min-w-[220px] list-none rounded-lg border border-[#E5E5E5] bg-white py-1 shadow-lg"
                 style={{
                   left: Math.max(12, Math.min(rect.right - 220, window.innerWidth - 232)),
                   top: Math.min(rect.bottom + 8, window.innerHeight - 210),
@@ -79,7 +79,7 @@ export default function ModelSelector({
                         onChange(model.id);
                         setOpen(false);
                       }}
-                      className={`w-full border-0 bg-transparent px-4 py-2.5 text-left text-[14px] hover:bg-[#F3F0EF] cursor-pointer ${
+                      className={`w-full border-0 bg-transparent px-4 py-2.5 text-left text-[14px] transition-colors hover:bg-[#E8DADA] cursor-pointer ${
                         model.id === value
                           ? "font-semibold text-[#5B4F4B]"
                           : "text-[#535353]"

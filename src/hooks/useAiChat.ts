@@ -217,7 +217,8 @@ export function useAiChat(isOpen: boolean) {
 
   const abortRef = useRef<AbortController | null>(null);
   const quizSaveRef = useRef<string | null>(null);
-  const isChatModeLocked = Boolean(activeChatId || messages.length > 0 || activeQuiz || isSending);
+  const wasOpenRef = useRef(false);
+  const isChatModeLocked = Boolean(activeChatId || messages.length > 0 || activeQuiz || activeQuizContext || isSending);
 
   const resetQuizState = useCallback(() => {
     setLastTestPrompt("");
@@ -350,12 +351,25 @@ export function useAiChat(isOpen: boolean) {
   const startNewChat = useCallback(() => {
     setActiveChatId(null);
     setMessages([]);
+    setChatModeState("lesson");
     setStreamingContent("");
     setPendingAttachments([]);
     setPendingDocumentContexts([]);
     setError(null);
     resetQuizState();
   }, [resetQuizState]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      return;
+    }
+
+    if (!wasOpenRef.current) {
+      wasOpenRef.current = true;
+      startNewChat();
+    }
+  }, [isOpen, startNewChat]);
 
   const deleteChat = useCallback(
     async (chatId: string) => {
@@ -558,7 +572,7 @@ export function useAiChat(isOpen: boolean) {
               uid,
               selectedModel,
               titleFromMessage(prompt),
-              "lesson"
+              options.preserveQuiz ? chatMode : "lesson"
             );
             persistedChatId = chatId;
             setActiveChatId(chatId);
@@ -567,7 +581,7 @@ export function useAiChat(isOpen: boolean) {
                 id: chatId!,
                 title: titleFromMessage(prompt),
                 model: selectedModel,
-                mode: "lesson",
+                mode: options.preserveQuiz ? chatMode : "lesson",
                 createdAt: new Date(),
                 updatedAt: new Date(),
               },
@@ -581,7 +595,10 @@ export function useAiChat(isOpen: boolean) {
           }
         } else {
           try {
-            await updateChatMeta(uid, chatId, { model: selectedModel, mode: "lesson" });
+            await updateChatMeta(uid, chatId, {
+              model: selectedModel,
+              mode: options.preserveQuiz ? chatMode : "lesson",
+            });
           } catch (err) {
             console.error("[useAiChat] updateChatMeta:", err);
             setError("Sohbet bilgisi kaydedilemedi, yanıt yine oluşturulacak.");
@@ -670,6 +687,7 @@ export function useAiChat(isOpen: boolean) {
       uid,
       authLoading,
       activeChatId,
+      chatMode,
       isSending,
       messages,
       pendingAttachments,

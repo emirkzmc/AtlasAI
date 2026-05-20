@@ -9,7 +9,7 @@ import type {
 } from "../../types/quiz.types";
 import type { QuizSelectionMap } from "../../services/quiz/quizStats";
 import LoadingDots from "./LoadingDots";
-import TypewriterText from "./TypewriterText";
+import MarkdownMessage from "./MarkdownMessage";
 import QuizPanel from "./QuizPanel";
 
 type QuizWorkspaceProps = {
@@ -52,6 +52,10 @@ function getContextMessage(context: QuizContextInfo | null, quiz: QuizPayload | 
 }
 
 function TestLoadingPanel({ context }: { context: QuizContextInfo | null }) {
+  const loadingTitle = context?.documentTitle
+    ? `${context.documentTitle} için sorular hazırlanıyor...`
+    : "Sorular hazırlanıyor...";
+
   return (
     <section className="flex h-full min-h-[420px] flex-col justify-center rounded-[22px] border border-[#AFA2A2] bg-[#C8BDBD] px-6 py-8 shadow-sm">
       <div className="mx-auto flex max-w-[360px] flex-col items-center text-center text-[#1a1a1a]">
@@ -59,12 +63,10 @@ function TestLoadingPanel({ context }: { context: QuizContextInfo | null }) {
           <LoadingDots />
         </div>
         <h3 className="m-0 text-[20px] font-semibold">
-          Sorular hazirlaniyor...
+          {loadingTitle}
         </h3>
         <p className="m-0 mt-2 text-[14px] leading-relaxed text-[#5B4F4B]">
-          {context?.documentTitle
-            ? `${context.documentTitle} icin test hazirlaniyor.`
-            : "Istedigin konu icin test hazirlaniyor."}
+          Test alanı hazırlanırken sohbetine sol panelden devam edebilirsin.
         </p>
       </div>
     </section>
@@ -118,6 +120,12 @@ export default function QuizWorkspace({
 }: QuizWorkspaceProps) {
   const title = context?.documentTitle ?? quiz?.title ?? "Test";
   const contextMessage = getContextMessage(context, quiz);
+  const firstUserMessage = messages.find((message) => message.role === "user");
+  const documentTitle =
+    context?.documentTitle ?? firstUserMessage?.attachments?.[0]?.name ?? null;
+  const visibleMessages = messages
+    .slice(1)
+    .filter((message) => !message.metadata?.quiz);
 
   return (
     <div className="grid h-full min-h-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(340px,0.42fr)_minmax(440px,0.58fr)]">
@@ -129,20 +137,21 @@ export default function QuizWorkspace({
       >
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           <div className="flex flex-col gap-4 pb-4">
-            {context?.documentTitle && (
-              <div className="w-full max-w-[240px] rounded-[14px] bg-[#B7AAAA] px-5 py-4 text-[#1a1a1a] shadow-sm">
-                <p className="m-0 truncate text-[15px] font-medium">
-                  {context.documentTitle.replace(/\.[^.]+$/, "")}
-                </p>
-                <p className="m-0 mt-5 text-[13px] font-medium text-[#6B6161]">
-                  {getDocumentType(context)}
-                </p>
-              </div>
-            )}
-
             {(context?.prompt || messages[0]?.content) && (
-              <div className="ml-auto w-full max-w-[420px] rounded-[18px] bg-[#B7AAAA] px-5 py-3 text-[15px] font-medium text-[#1a1a1a] shadow-sm">
-                {context?.prompt ?? messages[0]?.content}
+              <div className="ml-auto flex w-full max-w-[420px] flex-col items-end gap-2">
+                {documentTitle && (
+                  <div className="max-w-[240px] rounded-[10px] border border-[#D4C4C4] bg-white/80 px-3 py-2 text-[#1a1a1a] shadow-sm">
+                    <p className="m-0 max-w-[200px] truncate text-[12px] font-semibold">
+                      {documentTitle}
+                    </p>
+                    <p className="m-0 mt-1 text-[10px] font-semibold uppercase text-[#6B6161]">
+                      {context ? getDocumentType(context) : documentTitle.split(".").pop()?.toUpperCase() ?? "DOSYA"}
+                    </p>
+                  </div>
+                )}
+                <div className="w-full rounded-[18px] bg-[#B7AAAA] px-5 py-3 text-[15px] font-medium text-[#1a1a1a] shadow-sm">
+                  {context?.prompt ?? messages[0]?.content}
+                </div>
               </div>
             )}
 
@@ -157,7 +166,7 @@ export default function QuizWorkspace({
               )}
             </div>
 
-            {messages.slice(1).map((msg) => (
+            {visibleMessages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
@@ -170,7 +179,7 @@ export default function QuizWorkspace({
                   }`}
                 >
                   {msg.role === "model" ? (
-                    <TypewriterText text={msg.content} className="text-[#1a1a1a]" />
+                    <MarkdownMessage content={msg.content} />
                   ) : (
                     msg.content
                   )}
@@ -181,7 +190,7 @@ export default function QuizWorkspace({
             {streamingContent && (
               <div className="flex justify-start">
                 <div className="max-w-[92%] rounded-2xl rounded-bl-md border border-[#E8E8E8] bg-white px-4 py-3 text-[14px] leading-relaxed text-[#1a1a1a] shadow-sm whitespace-pre-wrap">
-                  <TypewriterText text={streamingContent} live className="text-[#1a1a1a]" />
+                  <MarkdownMessage content={streamingContent} live />
                 </div>
               </div>
             )}

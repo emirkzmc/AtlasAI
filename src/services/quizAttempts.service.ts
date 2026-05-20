@@ -5,6 +5,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import { app } from "./firebase.config";
 import type { QuizAttemptInput } from "../types/quiz.types";
 
@@ -42,6 +43,17 @@ function getDateKey(): string {
   return new Date().toISOString().split("T")[0];
 }
 
+function getLocalDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getTurkishDayLabel(date = new Date()): string {
+  return new Intl.DateTimeFormat("tr-TR", { weekday: "long" }).format(date);
+}
+
 function getMonthInfo() {
   const date = new Date();
   const monthIndex = date.getMonth() + 1;
@@ -70,6 +82,8 @@ export async function saveQuizAttempt(input: QuizAttemptInput): Promise<string> 
   const performanceRef = doc(db, "users", input.userId, "stats", "performance");
   const activityRef = doc(db, "users", input.userId, "activityLogs", getDateKey());
   const monthInfo = getMonthInfo();
+  const todayKey = getLocalDateKey();
+  const dailyRef = doc(db, "users", input.userId, "performanceDaily", todayKey);
   const monthlyRef = doc(
     db,
     "users",
@@ -91,17 +105,35 @@ export async function saveQuizAttempt(input: QuizAttemptInput): Promise<string> 
     statsRef.path,
     performanceRef.path,
     activityRef.path,
+    dailyRef.path,
     monthlyRef.path,
     ...(documentStatsRef ? [documentStatsRef.path] : []),
     ...(documentRef ? [documentRef.path] : []),
     ...wrongAnswerRefs.map((ref) => ref.path),
   ];
+  const authUid = getAuth(app).currentUser?.uid ?? null;
+
+  console.info("[Quiz Save Debug]", {
+    authUid,
+    targetUid: input.userId,
+    projectId: app.options.projectId,
+    paths: attemptedPaths.slice(0, 6),
+  });
+
+  if (!authUid) {
+    throw new Error("Kullanıcı oturumu bulunamadı. Lütfen tekrar giriş yapın.");
+  }
+
+  if (authUid !== input.userId) {
+    throw new Error("Auth UID ile kayıt UID eşleşmiyor.");
+  }
 
   try {
     await runTransaction(db, async (transaction) => {
       const statsSnap = await transaction.get(statsRef);
       const performanceSnap = await transaction.get(performanceRef);
       const activitySnap = await transaction.get(activityRef);
+      const dailySnap = await transaction.get(dailyRef);
       const monthlySnap = await transaction.get(monthlyRef);
       const documentStatsSnap = documentStatsRef
         ? await transaction.get(documentStatsRef)
@@ -230,6 +262,36 @@ export async function saveQuizAttempt(input: QuizAttemptInput): Promise<string> 
       { merge: true }
     );
 
+    const dailyData = dailySnap.exists() ? dailySnap.data() : {};
+    const dailyTotal =
+      readNumber(dailyData, ["totalQuestionsAnswered", "totalQuestions", "total"]) +
+      input.result.totalQuestions;
+    const dailyCorrect =
+      readNumber(dailyData, ["totalCorrectAnswers", "correctAnswers", "correct"]) +
+      input.result.correctCount;
+    const dailyWrong =
+      readNumber(dailyData, ["totalWrongAnswers", "wrongAnswers", "wrong"]) +
+      input.result.wrongCount;
+    const dailyBlank =
+      readNumber(dailyData, ["totalBlankAnswers", "blankAnswers", "blank"]) +
+      input.result.blankCount;
+    const dailyRate = nextRate(dailyCorrect, dailyTotal);
+
+    transaction.set(
+      dailyRef,
+      {
+        date: todayKey,
+        dayLabel: getTurkishDayLabel(),
+        totalQuestionsAnswered: dailyTotal,
+        totalCorrectAnswers: dailyCorrect,
+        totalWrongAnswers: dailyWrong,
+        totalBlankAnswers: dailyBlank,
+        successRate: dailyRate,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
     if (documentStatsRef && input.documentId) {
       const documentStatsData = documentStatsSnap?.exists()
         ? documentStatsSnap.data()
@@ -309,10 +371,16 @@ export async function saveQuizAttempt(input: QuizAttemptInput): Promise<string> 
 
     wrongAnswers.forEach((answer, index) => {
       transaction.set(wrongAnswerRefs[index], {
+        userId: input.userId,
         documentId: input.documentId,
+        documentTitle: input.documentTitle,
         documentName: input.documentTitle ?? "Genel test",
         category: input.sourceType === "document" ? "Doküman Testi" : "Genel Test",
         question: answer.question,
+        selectedOptionId: answer.selectedOptionId,
+        correctOptionId: answer.correctOptionId,
+        selectedAnswerText: answer.selectedOptionText,
+        correctAnswerText: answer.correctOptionText,
         userAnswer: answer.selectedOptionText ?? answer.selectedOptionId ?? "-",
         correctAnswer: answer.correctOptionText,
         explanation: answer.explanation,

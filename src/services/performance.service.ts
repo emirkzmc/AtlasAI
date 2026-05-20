@@ -6,6 +6,8 @@ import {
   getFirestore,
   orderBy,
   query,
+  limit,
+  Timestamp,
 } from "firebase/firestore";
 import { app } from "./firebase.config";
 
@@ -25,6 +27,17 @@ export interface MonthlyPerformancePoint {
   monthIndex: number;
 }
 
+export interface DailyPerformancePoint {
+  id: string;
+  date: string;
+  dayLabel: string;
+  value: number;
+  totalQuestionsAnswered: number;
+  totalCorrectAnswers: number;
+  totalWrongAnswers: number;
+  totalBlankAnswers: number;
+}
+
 export interface PdfPerformanceRow {
   id: string;
   documentName: string;
@@ -36,6 +49,7 @@ export interface PdfPerformanceRow {
 export interface PerformanceData {
   summary: PerformanceSummary;
   monthlyTrend: MonthlyPerformancePoint[];
+  dailyTrend: DailyPerformancePoint[];
   documents: PdfPerformanceRow[];
 }
 
@@ -72,6 +86,27 @@ function readNumber(data: Record<string, unknown>, keys: string[]): number | nul
 
 function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function getLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getLast7DateKeys(): string[] {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return getLocalDateKey(date);
+  });
+}
+
+function getDayLabel(dateKey: string): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(year, (month ?? 1) - 1, day ?? 1);
+  return new Intl.DateTimeFormat("tr-TR", { weekday: "long" }).format(date);
 }
 
 async function fetchPerformanceSummary(uid: string): Promise<PerformanceSummary> {
@@ -132,6 +167,98 @@ async function fetchMonthlyPerformanceTrend(
     .sort((a, b) => a.monthIndex - b.monthIndex);
 }
 
+async function fetchDailyPerformanceTrend(
+  uid: string
+): Promise<DailyPerformancePoint[]> {
+  const dateKeys = getLast7DateKeys();
+  const points = new Map<string, DailyPerformancePoint>();
+  const datesWithDailyDoc = new Set<string>();
+
+  dateKeys.forEach((dateKey) => {
+    points.set(dateKey, {
+      id: dateKey,
+      date: dateKey,
+      dayLabel: getDayLabel(dateKey),
+      value: 0,
+      totalQuestionsAnswered: 0,
+      totalCorrectAnswers: 0,
+      totalWrongAnswers: 0,
+      totalBlankAnswers: 0,
+    });
+  });
+
+  await Promise.allSettled(
+    dateKeys.map(async (dateKey) => {
+      const dailyDoc = await getDoc(
+        doc(db, "users", uid, "performanceDaily", dateKey)
+      );
+      if (!dailyDoc.exists()) return;
+
+      const data = dailyDoc.data();
+      datesWithDailyDoc.add(dateKey);
+      const total = readNumber(data, ["totalQuestionsAnswered", "totalQuestions", "total"]) ?? 0;
+      const correct = readNumber(data, ["totalCorrectAnswers", "correctAnswers", "correct"]) ?? 0;
+      const wrong = readNumber(data, ["totalWrongAnswers", "wrongAnswers", "wrong"]) ?? 0;
+      const blank = readNumber(data, ["totalBlankAnswers", "blankAnswers", "blank"]) ?? 0;
+      const explicitRate = readNumber(data, ["successRate", "value", "rate"]);
+
+      points.set(dateKey, {
+        id: dateKey,
+        date: dateKey,
+        dayLabel:
+          typeof data.dayLabel === "string" && data.dayLabel.trim()
+            ? data.dayLabel
+            : getDayLabel(dateKey),
+        value: clampPercent(explicitRate ?? (total > 0 ? (correct / total) * 100 : 0)),
+        totalQuestionsAnswered: total,
+        totalCorrectAnswers: correct,
+        totalWrongAnswers: wrong,
+        totalBlankAnswers: blank,
+      });
+    })
+  );
+
+  const attemptsSnap = await getDocs(
+    query(
+      collection(db, "users", uid, "quizAttempts"),
+      orderBy("createdAt", "desc"),
+      limit(200)
+    )
+  );
+
+  attemptsSnap.docs.forEach((attempt) => {
+    const data = attempt.data();
+    const createdAt = data.createdAt;
+    const date =
+      createdAt instanceof Timestamp
+        ? createdAt.toDate()
+        : createdAt instanceof Date
+          ? createdAt
+          : null;
+    if (!date) return;
+
+    const dateKey = getLocalDateKey(date);
+    const current = points.get(dateKey);
+    if (!current || datesWithDailyDoc.has(dateKey)) return;
+
+    const total = readNumber(data, ["totalQuestions", "totalQuestionsAnswered", "total"]) ?? 0;
+    const correct = readNumber(data, ["correctCount", "totalCorrectAnswers", "correct"]) ?? 0;
+    const wrong = readNumber(data, ["wrongCount", "totalWrongAnswers", "wrong"]) ?? 0;
+    const blank = readNumber(data, ["blankCount", "totalBlankAnswers", "blank"]) ?? 0;
+
+    current.totalQuestionsAnswered += total;
+    current.totalCorrectAnswers += correct;
+    current.totalWrongAnswers += wrong;
+    current.totalBlankAnswers += blank;
+    current.value =
+      current.totalQuestionsAnswered > 0
+        ? clampPercent((current.totalCorrectAnswers / current.totalQuestionsAnswered) * 100)
+        : 0;
+  });
+
+  return dateKeys.map((dateKey) => points.get(dateKey)!);
+}
+
 async function fetchPdfPerformance(uid: string): Promise<PdfPerformanceRow[]> {
   const colRef = collection(db, "users", uid, "documents");
   const snap = await getDocs(query(colRef, orderBy("createdAt", "desc")));
@@ -161,15 +288,17 @@ async function fetchPdfPerformance(uid: string): Promise<PdfPerformanceRow[]> {
 }
 
 export async function fetchPerformanceData(uid: string): Promise<PerformanceData> {
-  const [summary, monthlyTrend, documents] = await Promise.all([
+  const [summary, monthlyTrend, dailyTrend, documents] = await Promise.all([
     fetchPerformanceSummary(uid),
     fetchMonthlyPerformanceTrend(uid),
+    fetchDailyPerformanceTrend(uid),
     fetchPdfPerformance(uid),
   ]);
 
   return {
     summary: summary ?? EMPTY_SUMMARY,
     monthlyTrend,
+    dailyTrend,
     documents,
   };
 }
@@ -178,6 +307,7 @@ export function getEmptyPerformanceData(): PerformanceData {
   return {
     summary: EMPTY_SUMMARY,
     monthlyTrend: [],
+    dailyTrend: [],
     documents: [],
   };
 }
