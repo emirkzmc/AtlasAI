@@ -28,6 +28,7 @@ import {
   saveMessage,
   titleFromMessage,
   updateChatMeta,
+  updateMessageMetadata,
 } from "../services/aiChat.service";
 import { app, storageApp } from "../services/firebase.config";
 import {
@@ -140,8 +141,11 @@ function findStoredQuiz(messages: AiChatMessage[]) {
     const metadata = messages[index]?.metadata;
     if (metadata?.quiz) {
       return {
+        messageId: messages[index].id,
         quiz: metadata.quiz,
         context: metadata.quizContext ?? null,
+        quizResult: metadata.quizResult ?? null,
+        quizAnswers: metadata.quizAnswers ?? null,
       };
     }
   }
@@ -199,6 +203,7 @@ export function useAiChat(isOpen: boolean) {
   const [activeQuiz, setActiveQuiz] = useState<QuizPayload | null>(null);
   const [activeQuizContext, setActiveQuizContext] = useState<QuizContextInfo | null>(null);
   const [activeQuizDocumentTitle, setActiveQuizDocumentTitle] = useState<string | null>(null);
+  const [activeQuizMessageId, setActiveQuizMessageId] = useState<string | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState<QuizSelectionMap>({});
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
@@ -225,6 +230,7 @@ export function useAiChat(isOpen: boolean) {
     setActiveQuiz(null);
     setActiveQuizContext(null);
     setActiveQuizDocumentTitle(null);
+    setActiveQuizMessageId(null);
     setCurrentQuestionIndex(0);
     setQuizAnswers({});
     setQuizResult(null);
@@ -319,13 +325,23 @@ export function useAiChat(isOpen: boolean) {
           setActiveQuiz(storedQuiz.quiz);
           setActiveQuizContext(storedQuiz.context);
           setActiveQuizDocumentTitle(storedQuiz.context?.documentTitle ?? null);
+          setActiveQuizMessageId(storedQuiz.messageId);
           setLastTestPrompt(storedQuiz.context?.prompt ?? "");
-          setCurrentQuestionIndex(0);
-          setQuizAnswers({});
-          setQuizResult(null);
-          setQuizSaveStatus("idle");
-          setQuizSaveError(null);
-          quizSaveRef.current = null;
+          
+          if (storedQuiz.quizResult) {
+            setCurrentQuestionIndex(storedQuiz.quiz.questions.length - 1);
+            setQuizAnswers(storedQuiz.quizAnswers ?? {});
+            setQuizResult(storedQuiz.quizResult);
+            setQuizSaveStatus("saved");
+            quizSaveRef.current = "already_saved";
+          } else {
+            setCurrentQuestionIndex(0);
+            setQuizAnswers({});
+            setQuizResult(null);
+            setQuizSaveStatus("idle");
+            setQuizSaveError(null);
+            quizSaveRef.current = null;
+          }
         }
       } catch (err) {
         console.error("[useAiChat] loadMessages:", err);
@@ -899,6 +915,7 @@ export function useAiChat(isOpen: boolean) {
           },
         };
         setMessages((prev) => [...prev, modelMsg]);
+        setActiveQuizMessageId(modelMsgId);
 
         setChats((prev) =>
           prev.map((c) =>
@@ -953,6 +970,18 @@ export function useAiChat(isOpen: boolean) {
           title: activeQuiz.title,
           result,
         });
+
+        if (activeChatId && activeQuizMessageId) {
+          try {
+            await updateMessageMetadata(uid, activeChatId, activeQuizMessageId, {
+              quizResult: result,
+              quizAnswers: quizAnswers,
+            });
+          } catch (err) {
+            console.error("[useAiChat] failed to update message metadata with quiz result:", err);
+          }
+        }
+
         quizSaveRef.current = attemptId;
         setQuizSaveStatus("saved");
         window.dispatchEvent(
@@ -973,7 +1002,7 @@ export function useAiChat(isOpen: boolean) {
         );
       }
     },
-    [activeQuiz, activeQuizDocumentTitle, uid]
+    [activeQuiz, activeQuizDocumentTitle, uid, activeChatId, activeQuizMessageId, quizAnswers]
   );
 
   const answerQuizQuestion = useCallback(

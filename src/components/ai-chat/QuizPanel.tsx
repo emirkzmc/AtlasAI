@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type {
   QuizPayload,
   QuizQuestion,
@@ -81,6 +81,14 @@ export default function QuizPanel({
   const isFirstQuestion = currentIndex === 0;
   const isLastQuestion = currentIndex === quiz.questions.length - 1;
 
+  const [showReview, setShowReview] = useState(false);
+
+  useEffect(() => {
+    if (!result) {
+      setShowReview(false);
+    }
+  }, [result]);
+
   const counts = useMemo(() => {
     return quiz.questions.reduce(
       (acc, item) => {
@@ -100,14 +108,18 @@ export default function QuizPanel({
 
   function goNext() {
     if (isLastQuestion) {
-      onFinish();
+      if (result) {
+        setShowReview(false);
+      } else {
+        onFinish();
+      }
       return;
     }
     onQuestionChange(currentIndex + 1);
   }
 
   function getOptionClass(optionId: string): string {
-    if (!question || !answered) {
+    if (!question || (!answered && !result)) {
       return "border-white/70 bg-white text-[#1a1a1a] hover:border-[#8E7777]/50 hover:bg-[#FAF8F7]";
     }
 
@@ -136,7 +148,7 @@ export default function QuizPanel({
     );
   }
 
-  if (result) {
+  if (result && !showReview) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4 rounded-[22px] border border-[#AFA2A2] bg-[#C8BDBD] p-5 shadow-sm">
         <section className="rounded-[16px] bg-[#D3BFBF] px-5 py-4">
@@ -160,11 +172,24 @@ export default function QuizPanel({
 
         <QuizResultSummary result={result} />
 
-        <div className="rounded-[14px] border border-white/50 bg-white/65 px-4 py-3 text-[13px] text-[#5B4F4B]">
+        <div className="rounded-[14px] border border-white/50 bg-white/65 px-4 py-3 text-[13px] text-[#5B4F4B] w-full">
           {saveStatus === "saving" && "Sonuç kaydediliyor..."}
           {saveStatus === "saved" && "Test sonucu kaydedildi."}
           {saveStatus === "error" && (saveError ?? "Test sonucu kaydedilemedi.")}
           {saveStatus === "idle" && "Sonuç hazır."}
+        </div>
+
+        <div className="flex justify-end mt-auto pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              setShowReview(true);
+              onQuestionChange(0);
+            }}
+            className="h-11 rounded-full border-0 bg-[#5B4F4B] px-6 text-[13px] font-semibold text-white transition-colors hover:bg-[#3F3131] cursor-pointer shrink-0 w-full sm:w-auto"
+          >
+            Sorulara Dön
+          </button>
         </div>
       </div>
     );
@@ -245,7 +270,7 @@ export default function QuizPanel({
             ))}
           </div>
 
-          {answered && (
+          {(answered || result) && (
             <div className="mt-5 rounded-[14px] border border-white/60 bg-white/60 px-4 py-3">
               <p className="m-0 text-[11px] font-semibold uppercase tracking-wide text-[#5B4F4B]">
                 Açıklama
@@ -279,10 +304,10 @@ export default function QuizPanel({
             <button
               type="button"
               onClick={goNext}
-              disabled={isSaving}
+              disabled={isSaving && !result}
               className="h-11 rounded-full border-0 bg-[#5B4F4B] px-6 text-[13px] font-semibold text-white transition-colors hover:bg-[#3F3131] cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isLastQuestion ? (isSaving ? "Kaydediliyor..." : "Bitir") : "İleri"}
+              {isLastQuestion ? (result ? "Sonuçlara Dön" : (isSaving ? "Kaydediliyor..." : "Bitir")) : "İleri"}
             </button>
           </div>
         </footer>

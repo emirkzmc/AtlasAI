@@ -146,6 +146,19 @@ export async function updateChatMeta(
   });
 }
 
+export async function updateMessageMetadata(
+  uid: string,
+  chatId: string,
+  messageId: string,
+  metadataPatch: Partial<NonNullable<AiChatMessage["metadata"]>>
+): Promise<void> {
+  const updates: Record<string, any> = {};
+  for (const [key, val] of Object.entries(metadataPatch)) {
+    updates[`metadata.${key}`] = val;
+  }
+  await updateDoc(doc(db, "users", uid, "aiChats", chatId, "messages", messageId), updates);
+}
+
 export async function saveMessage(
   uid: string,
   chatId: string,

@@ -206,6 +206,7 @@ export default function ProfilePage() {
   const successText = statsLoading
     ? "Genel Başarı Yüzdesi: --"
     : `Genel Başarı Yüzdesi: %${generalSuccessRate}`;
+  const totalQuestionsText = statsLoading ? "-- Soru" : `${totalAnswered} Soru`;
 
   let currentStreak = 0;
   if (activityData && Object.keys(activityData).length > 0) {
@@ -259,7 +260,7 @@ export default function ProfilePage() {
             <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">{successText}</span>
             <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">{totalDocumentsText}</span>
             <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">🔥 {currentStreak} günlük seri</span>
-            <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">-- Soru</span>
+            <span className="px-4 py-2 sm:px-5 bg-white rounded-full text-[13px] sm:text-[14px] font-medium text-[#1a1a1a] shadow-[0_2px_8px_rgba(0,0,0,0.04)]">{totalQuestionsText}</span>
           </div>
         </div>
       </div>
