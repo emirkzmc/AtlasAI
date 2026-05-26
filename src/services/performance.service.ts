@@ -196,11 +196,22 @@ async function fetchDailyPerformanceTrend(
 
       const data = dailyDoc.data();
       datesWithDailyDoc.add(dateKey);
-      const total = readNumber(data, ["totalQuestionsAnswered", "totalQuestions", "total"]) ?? 0;
-      const correct = readNumber(data, ["totalCorrectAnswers", "correctAnswers", "correct"]) ?? 0;
-      const wrong = readNumber(data, ["totalWrongAnswers", "wrongAnswers", "wrong"]) ?? 0;
-      const blank = readNumber(data, ["totalBlankAnswers", "blankAnswers", "blank"]) ?? 0;
-      const explicitRate = readNumber(data, ["successRate", "value", "rate"]);
+      const total = Math.max(
+        0,
+        readNumber(data, ["totalQuestionsAnswered", "totalQuestions", "total"]) ?? 0
+      );
+      const correct = Math.max(
+        0,
+        readNumber(data, ["totalCorrectAnswers", "correctAnswers", "correct"]) ?? 0
+      );
+      const wrong = Math.max(
+        0,
+        readNumber(data, ["totalWrongAnswers", "wrongAnswers", "wrong"]) ?? 0
+      );
+      const blank = Math.max(
+        0,
+        readNumber(data, ["totalBlankAnswers", "blankAnswers", "blank"]) ?? 0
+      );
 
       points.set(dateKey, {
         id: dateKey,
@@ -209,7 +220,7 @@ async function fetchDailyPerformanceTrend(
           typeof data.dayLabel === "string" && data.dayLabel.trim()
             ? data.dayLabel
             : getDayLabel(dateKey),
-        value: clampPercent(explicitRate ?? (total > 0 ? (correct / total) * 100 : 0)),
+        value: total > 0 ? clampPercent((correct / total) * 100) : 0,
         totalQuestionsAnswered: total,
         totalCorrectAnswers: correct,
         totalWrongAnswers: wrong,
@@ -228,6 +239,7 @@ async function fetchDailyPerformanceTrend(
 
   attemptsSnap.docs.forEach((attempt) => {
     const data = attempt.data();
+    if (data.status && data.status !== "completed") return;
     const createdAt = data.createdAt;
     const date =
       createdAt instanceof Timestamp
@@ -241,10 +253,22 @@ async function fetchDailyPerformanceTrend(
     const current = points.get(dateKey);
     if (!current || datesWithDailyDoc.has(dateKey)) return;
 
-    const total = readNumber(data, ["totalQuestions", "totalQuestionsAnswered", "total"]) ?? 0;
-    const correct = readNumber(data, ["correctCount", "totalCorrectAnswers", "correct"]) ?? 0;
-    const wrong = readNumber(data, ["wrongCount", "totalWrongAnswers", "wrong"]) ?? 0;
-    const blank = readNumber(data, ["blankCount", "totalBlankAnswers", "blank"]) ?? 0;
+    const total = Math.max(
+      0,
+      readNumber(data, ["totalQuestions", "totalQuestionsAnswered", "total"]) ?? 0
+    );
+    const correct = Math.max(
+      0,
+      readNumber(data, ["correctCount", "totalCorrectAnswers", "correct"]) ?? 0
+    );
+    const wrong = Math.max(
+      0,
+      readNumber(data, ["wrongCount", "totalWrongAnswers", "wrong"]) ?? 0
+    );
+    const blank = Math.max(
+      0,
+      readNumber(data, ["blankCount", "totalBlankAnswers", "blank"]) ?? 0
+    );
 
     current.totalQuestionsAnswered += total;
     current.totalCorrectAnswers += correct;

@@ -44,17 +44,20 @@ function buildAskPrompt(question: QuizQuestion): string {
 function getQuestionStatus(
   question: QuizQuestion,
   selections: QuizSelectionMap
-): "unanswered" | "correct" | "wrong" {
+): "unanswered" | "correct" | "wrong" | "blank" {
   if (!Object.prototype.hasOwnProperty.call(selections, question.id)) {
     return "unanswered";
   }
 
+  if (selections[question.id] === null) return "blank";
+
   return selections[question.id] === question.correctOptionId ? "correct" : "wrong";
 }
 
-function getSegmentClass(status: "unanswered" | "correct" | "wrong", active: boolean): string {
+function getSegmentClass(status: "unanswered" | "correct" | "wrong" | "blank", active: boolean): string {
   if (status === "correct") return active ? "bg-[#1F9D49] ring-2 ring-[#167A3B]/25" : "bg-[#2DBE68]";
   if (status === "wrong") return active ? "bg-[#D84C4C] ring-2 ring-[#C93A3A]/25" : "bg-[#EF5A5A]";
+  if (status === "blank") return active ? "bg-[#C2A48F] ring-2 ring-[#8E7777]/25" : "bg-[#D8C3B2]";
   return active ? "bg-[#5B4F4B] ring-2 ring-[#5B4F4B]/20" : "bg-white";
 }
 
@@ -95,9 +98,10 @@ export default function QuizPanel({
         const status = getQuestionStatus(item, answers);
         if (status === "correct") acc.correct += 1;
         if (status === "wrong") acc.wrong += 1;
+        if (status === "blank") acc.blank += 1;
         return acc;
       },
-      { correct: 0, wrong: 0 }
+      { correct: 0, wrong: 0, blank: 0 }
     );
   }, [quiz.questions, answers]);
 
@@ -218,6 +222,9 @@ export default function QuizPanel({
               <span className="inline-flex h-7 items-center gap-1 rounded-full bg-[#E6A4A4] px-3 text-[12px] font-semibold text-[#9B1F1F]">
                 × {counts.wrong}
               </span>
+              <span className="inline-flex h-7 items-center gap-1 rounded-full bg-[#EFE1D4] px-3 text-[12px] font-semibold text-[#8E6F55]">
+                Boş {counts.blank}
+              </span>
               <span className="inline-flex h-7 items-center gap-1 rounded-full bg-[#A8D6AC] px-3 text-[12px] font-semibold text-[#167A3B]">
                 ✓ {counts.correct}
               </span>
@@ -270,6 +277,12 @@ export default function QuizPanel({
             ))}
           </div>
 
+          {result && selectedOptionId === null && (
+            <div className="mt-5 rounded-[14px] border border-[#D8C3B2] bg-white/55 px-4 py-3 text-[13px] font-medium text-[#5B4F4B]">
+              Boş bırakıldı
+            </div>
+          )}
+
           {(answered || result) && (
             <div className="mt-5 rounded-[14px] border border-white/60 bg-white/60 px-4 py-3">
               <p className="m-0 text-[11px] font-semibold uppercase tracking-wide text-[#5B4F4B]">
@@ -278,6 +291,12 @@ export default function QuizPanel({
               <p className="m-0 mt-1 text-[13px] leading-relaxed text-[#1a1a1a]">
                 {question.explanation}
               </p>
+            </div>
+          )}
+
+          {!result && saveError && (
+            <div className="mt-5 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-600">
+              {saveError}
             </div>
           )}
         </div>

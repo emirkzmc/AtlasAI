@@ -1,13 +1,24 @@
 import { useEffect, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  BarElement,
+  CategoryScale,
+  Chart as ChartJS,
+  LinearScale,
+  Tooltip,
+  type ChartOptions,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
 import toast from "react-hot-toast";
 import { useAuth } from "../../../hooks/useAuth";
 import { useProfileUpdate } from "../../../hooks/useProfileUpdate";
 import {
   getActivityLogs,
   getDashboardStats,
+  getLast7DaysQuestionActivity,
   getTotalDocuments,
   type DashboardStats,
+  type DailyQuestionActivityDay,
 } from "../../../services/dashboard.service";
 import ActivityHeatmap from "../../../components/dashboard/profile/ActivityHeatmap";
 import ProfileAvatar from "../../../components/dashboard/profile/ProfileAvatar";
@@ -16,11 +27,106 @@ import EmailProfileInfoCard from "../../../components/dashboard/profile/EmailPro
 import EmailChangeModal from "../../../components/dashboard/profile/EmailChangeModal";
 import { getUserDisplayName } from "../../../utils/userDisplay";
 
+ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip);
+
 function ProfileInfoCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.06)] flex flex-col justify-center">
       <span className="text-[11px] font-semibold text-[#737373] uppercase tracking-wide mb-2">{label}</span>
       <span className="text-[16px] text-[#1a1a1a]">{value}</span>
+    </div>
+  );
+}
+
+function DailyQuestionActivityChart({
+  data,
+  loading,
+  error,
+}: {
+  data: DailyQuestionActivityDay[];
+  loading: boolean;
+  error: boolean;
+}) {
+  const hasData = data.some((item) => item.questionsSolved > 0);
+  const chartData = {
+    labels: data.map((item) => item.label),
+    datasets: [
+      {
+        data: data.map((item) => item.questionsSolved),
+        backgroundColor: "#E8B6C3",
+        borderColor: "#D991A4",
+        borderWidth: 1,
+        borderRadius: 8,
+        borderSkipped: false,
+        maxBarThickness: 28,
+      },
+    ],
+  };
+  const options: ChartOptions<"bar"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#1a1a1a",
+        titleColor: "#fff",
+        bodyColor: "#f5f5f5",
+        cornerRadius: 8,
+        padding: 10,
+        callbacks: {
+          label: (ctx) => ` ${ctx.parsed.y} soru`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        border: { color: "#E5E5E5" },
+        ticks: {
+          color: "#737373",
+          font: { family: "Poppins, sans-serif", size: 11 },
+        },
+      },
+      y: {
+        beginAtZero: true,
+        border: { color: "#E5E5E5" },
+        grid: { color: "#F0E7EA" },
+        ticks: {
+          precision: 0,
+          color: "#737373",
+          font: { family: "Poppins, sans-serif", size: 11 },
+        },
+      },
+    },
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full min-h-[190px] flex items-center justify-center text-[#999] text-[14px]">
+        Yükleniyor...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full min-h-[190px] flex items-center justify-center text-center text-red-500 text-[13px]">
+        Günlük çözüm verisi yüklenemedi.
+      </div>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <div className="h-full min-h-[190px] flex items-center justify-center text-center text-[#999] text-[14px]">
+        Son 7 günde henüz soru çözülmedi
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[210px] w-full">
+      <Bar data={chartData} options={options} />
     </div>
   );
 }
@@ -42,6 +148,9 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const [activityData, setActivityData] = useState<Record<string, number>>({});
   const [activityLoading, setActivityLoading] = useState(true);
+  const [dailyQuestionActivity, setDailyQuestionActivity] = useState<DailyQuestionActivityDay[]>([]);
+  const [dailyQuestionLoading, setDailyQuestionLoading] = useState(true);
+  const [dailyQuestionError, setDailyQuestionError] = useState(false);
   const [totalDocuments, setTotalDocuments] = useState(0);
   const [totalDocumentsLoading, setTotalDocumentsLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -99,6 +208,45 @@ export default function ProfilePage() {
       cancelled = true;
     };
   }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      const timeoutId = window.setTimeout(() => {
+        setDailyQuestionActivity([]);
+        setDailyQuestionLoading(false);
+        setDailyQuestionError(false);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    let cancelled = false;
+    const stateTimeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        setDailyQuestionLoading(true);
+        setDailyQuestionError(false);
+      }
+    }, 0);
+
+    getLast7DaysQuestionActivity(user.uid)
+      .then((data) => {
+        if (!cancelled) setDailyQuestionActivity(data);
+      })
+      .catch((err) => {
+        console.error("[ProfilePage] daily question activity error:", err);
+        if (!cancelled) {
+          setDailyQuestionActivity([]);
+          setDailyQuestionError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDailyQuestionLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(stateTimeoutId);
+    };
+  }, [user?.uid, statsRefreshKey]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -285,10 +433,14 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.06)] min-h-65 flex flex-col">
           <h3 className="text-[13px] font-semibold text-[#737373] uppercase tracking-wide mb-4">
-            Akademik Genel Bakış
+            <span className="text-[13px]">Günlük Çözüm Aktivitesi</span>
           </h3>
-          <div className="w-full flex-1 flex items-center justify-center text-[#999] text-[14px] italic border border-dashed border-[#e0e0e0] rounded-xl bg-[#fafafa]">
-            Grafik verisi henüz yok
+          <div className="w-full flex-1 rounded-xl border border-[#F1E1E6] bg-[#fffafb] px-3 py-4">
+            <DailyQuestionActivityChart
+              data={dailyQuestionActivity}
+              loading={dailyQuestionLoading}
+              error={dailyQuestionError}
+            />
           </div>
         </div>
         <ActivityHeatmap activityData={activityData} loading={activityLoading} days={64} />

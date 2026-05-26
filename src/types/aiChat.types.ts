@@ -1,4 +1,4 @@
-import type { AiChatMode, QuizContextInfo, QuizPayload, QuizResult } from "./quiz.types";
+import type { AiChatMode, QuizAttemptStatus, QuizContextInfo, QuizPayload, QuizResult } from "./quiz.types";
 
 export type GeminiModelId =
   | "gemini-2.5-flash"
@@ -28,6 +28,8 @@ export interface AiChatMessage {
     quizContext?: QuizContextInfo;
     quizResult?: QuizResult;
     quizAnswers?: Record<string, string | null>;
+    quizAttemptId?: string;
+    quizStatus?: QuizAttemptStatus;
   };
 }
 
@@ -36,6 +38,9 @@ export interface AiChatSummary {
   title: string;
   model: GeminiModelId;
   mode?: AiChatMode;
+  documentTitle?: string | null;
+  prompt?: string | null;
+  quizStatus?: QuizAttemptStatus | null;
   createdAt: Date;
   updatedAt: Date;
 }

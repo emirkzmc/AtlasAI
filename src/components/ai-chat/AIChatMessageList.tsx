@@ -87,7 +87,8 @@ export default function AIChatMessageList({
 
       {isSending && !streamingContent && (
         <div className="flex justify-start">
-          <div className="bg-white rounded-2xl px-4 py-2 shadow-sm border border-[#E8E8E8]">
+          <div className="flex items-center gap-2 bg-white rounded-2xl px-4 py-2 shadow-sm border border-[#E8E8E8] text-[13px] text-[#5B4F4B]">
+            <span>Yükleniyor</span>
             <LoadingDots />
           </div>
         </div>

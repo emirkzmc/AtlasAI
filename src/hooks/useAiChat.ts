@@ -49,7 +49,14 @@ import {
   calculateQuizResult,
   type QuizSelectionMap,
 } from "../services/quiz/quizStats";
-import { saveQuizAttempt } from "../services/quizAttempts.service";
+import {
+  createQuizAttempt,
+  getQuizAttemptProgress,
+  saveQuizAttemptAnswer,
+  saveQuizAttempt,
+  updateQuizAttemptMessageId,
+  updateQuizAttemptProgress,
+} from "../services/quizAttempts.service";
 
 type PendingDocumentContext = {
   id: string;
@@ -136,6 +143,20 @@ function buildQuizContextMessage(
   return `İstediğin konu hakkında ${questionCount} soru hazırladım. Başarılar dilerim.`;
 }
 
+function cloneQuizPayload(quiz: QuizPayload): QuizPayload {
+  return {
+    ...quiz,
+    questions: quiz.questions.map((question) => ({
+      ...question,
+      options: question.options.map((option) => ({ ...option })),
+    })),
+  };
+}
+
+function cloneAnswers(answers: Record<string, string | null> | null | undefined): QuizSelectionMap {
+  return answers ? { ...answers } : {};
+}
+
 function findStoredQuiz(messages: AiChatMessage[]) {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const metadata = messages[index]?.metadata;
@@ -146,6 +167,8 @@ function findStoredQuiz(messages: AiChatMessage[]) {
         context: metadata.quizContext ?? null,
         quizResult: metadata.quizResult ?? null,
         quizAnswers: metadata.quizAnswers ?? null,
+        quizAttemptId: metadata.quizAttemptId ?? null,
+        quizStatus: metadata.quizStatus ?? null,
       };
     }
   }
@@ -204,6 +227,8 @@ export function useAiChat(isOpen: boolean) {
   const [activeQuizContext, setActiveQuizContext] = useState<QuizContextInfo | null>(null);
   const [activeQuizDocumentTitle, setActiveQuizDocumentTitle] = useState<string | null>(null);
   const [activeQuizMessageId, setActiveQuizMessageId] = useState<string | null>(null);
+  const [activeQuizAttemptId, setActiveQuizAttemptId] = useState<string | null>(null);
+  const [activeGenerationId, setActiveGenerationId] = useState<string | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState<QuizSelectionMap>({});
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
@@ -231,6 +256,8 @@ export function useAiChat(isOpen: boolean) {
     setActiveQuizContext(null);
     setActiveQuizDocumentTitle(null);
     setActiveQuizMessageId(null);
+    setActiveQuizAttemptId(null);
+    setActiveGenerationId(null);
     setCurrentQuestionIndex(0);
     setQuizAnswers({});
     setQuizResult(null);
@@ -321,26 +348,41 @@ export function useAiChat(isOpen: boolean) {
         }
         const storedQuiz = findStoredQuiz(msgs);
         if (storedQuiz) {
+          const attemptProgress = storedQuiz.quizAttemptId
+            ? await getQuizAttemptProgress(uid, storedQuiz.quizAttemptId)
+            : null;
+          const restoredAnswers = cloneAnswers(
+            attemptProgress?.answers ?? storedQuiz.quizAnswers
+          );
+          const restoredResult = attemptProgress?.result ?? storedQuiz.quizResult;
+
           setChatModeState("test");
-          setActiveQuiz(storedQuiz.quiz);
+          setActiveQuiz(cloneQuizPayload(storedQuiz.quiz));
           setActiveQuizContext(storedQuiz.context);
           setActiveQuizDocumentTitle(storedQuiz.context?.documentTitle ?? null);
           setActiveQuizMessageId(storedQuiz.messageId);
+          setActiveQuizAttemptId(storedQuiz.quizAttemptId);
+          setActiveGenerationId(storedQuiz.quizAttemptId);
           setLastTestPrompt(storedQuiz.context?.prompt ?? "");
           
-          if (storedQuiz.quizResult) {
-            setCurrentQuestionIndex(storedQuiz.quiz.questions.length - 1);
-            setQuizAnswers(storedQuiz.quizAnswers ?? {});
-            setQuizResult(storedQuiz.quizResult);
+          if (restoredResult) {
+            setCurrentQuestionIndex(
+              Math.min(
+                attemptProgress?.currentQuestionIndex ?? storedQuiz.quiz.questions.length - 1,
+                Math.max(storedQuiz.quiz.questions.length - 1, 0)
+              )
+            );
+            setQuizAnswers(restoredAnswers);
+            setQuizResult(restoredResult);
             setQuizSaveStatus("saved");
-            quizSaveRef.current = "already_saved";
+            quizSaveRef.current = storedQuiz.quizAttemptId ?? "already_saved";
           } else {
-            setCurrentQuestionIndex(0);
-            setQuizAnswers({});
+            setCurrentQuestionIndex(attemptProgress?.currentQuestionIndex ?? 0);
+            setQuizAnswers(restoredAnswers);
             setQuizResult(null);
             setQuizSaveStatus("idle");
             setQuizSaveError(null);
-            quizSaveRef.current = null;
+            quizSaveRef.current = storedQuiz.quizAttemptId;
           }
         }
       } catch (err) {
@@ -358,6 +400,8 @@ export function useAiChat(isOpen: boolean) {
     (chatId: string) => {
       setActiveChatId(chatId);
       setStreamingContent("");
+      setPendingAttachments([]);
+      setPendingDocumentContexts([]);
       resetQuizState();
       void loadMessages(chatId);
     },
@@ -745,10 +789,12 @@ export function useAiChat(isOpen: boolean) {
         return;
       }
 
-      let chatId = activeChatId;
-      let persistedChatId: string | null = activeChatId;
+      const generationId = `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      let chatId: string | null = null;
+      let persistedChatId: string | null = null;
 
       resetQuizState();
+      setActiveGenerationId(generationId);
       setLastTestPrompt(prompt);
       setActiveQuizDocumentTitle(documentTitle);
       setActiveQuizContext({
@@ -774,7 +820,9 @@ export function useAiChat(isOpen: boolean) {
             chatId = await createChat(
               uid,
               selectedModel,
-              titleFromMessage(prompt),
+              documentTitle
+                ? titleFromMessage(`${documentTitle}: ${prompt}`)
+                : titleFromMessage(prompt),
               "test"
             );
             persistedChatId = chatId;
@@ -782,9 +830,14 @@ export function useAiChat(isOpen: boolean) {
             setChats((prev) => [
               {
                 id: chatId!,
-                title: titleFromMessage(prompt),
+                title: documentTitle
+                  ? titleFromMessage(`${documentTitle}: ${prompt}`)
+                  : titleFromMessage(prompt),
                 model: selectedModel,
                 mode: "test",
+                documentTitle,
+                prompt,
+                quizStatus: "in_progress",
                 createdAt: new Date(),
                 updatedAt: new Date(),
               },
@@ -801,6 +854,23 @@ export function useAiChat(isOpen: boolean) {
             await updateChatMeta(uid, chatId, { model: selectedModel, mode: "test" });
           } catch (err) {
             console.error("[useAiChat] update test chat meta:", err);
+            setError("Sohbet bilgisi kaydedilemedi, test yine oluşturulacak.");
+          }
+        }
+
+        if (persistedChatId) {
+          try {
+            await updateChatMeta(uid, persistedChatId, {
+              title: documentTitle
+                ? titleFromMessage(`${documentTitle}: ${prompt}`)
+                : titleFromMessage(prompt),
+              model: selectedModel,
+              mode: "test",
+              documentTitle,
+              prompt,
+              quizStatus: "in_progress",
+            });
+          } catch {
             setError("Sohbet bilgisi kaydedilemedi, test yine oluşturulacak.");
           }
         }
@@ -866,17 +936,32 @@ export function useAiChat(isOpen: boolean) {
           assistantMessage: buildQuizContextMessage(documentTitle, quiz.questions.length),
           createdAt: new Date(),
         };
+        let attemptId: string | null = null;
+        if (persistedChatId && quiz.questions.length > 0) {
+          attemptId = await createQuizAttempt({
+            userId: uid,
+            chatId: persistedChatId,
+            generationId,
+            documentId,
+            documentTitle,
+            sourceType,
+            title: quiz.title,
+            prompt,
+            quiz,
+          });
+        }
 
-        setActiveQuiz(quiz);
+        setActiveQuiz(cloneQuizPayload(quiz));
         setLastTestPrompt(prompt);
         setCurrentQuestionIndex(0);
         setQuizAnswers({});
         setQuizResult(null);
         setActiveQuizContext(quizContext);
         setActiveQuizDocumentTitle(documentTitle);
+        setActiveQuizAttemptId(attemptId);
         setQuizSaveStatus("idle");
         setQuizSaveError(null);
-        quizSaveRef.current = null;
+        quizSaveRef.current = attemptId;
 
         const summary =
           quiz.questions.length > 0
@@ -896,8 +981,17 @@ export function useAiChat(isOpen: boolean) {
                 chatMode: "test",
                 quiz,
                 quizContext,
+                ...(attemptId ? { quizAttemptId: attemptId } : {}),
+                quizStatus: "in_progress",
               }
             );
+            if (attemptId) {
+              await updateQuizAttemptMessageId({
+                userId: uid,
+                attemptId,
+                messageId: modelMsgId,
+              });
+            }
           } catch (err) {
             console.error("[useAiChat] save test summary:", err);
           }
@@ -912,6 +1006,8 @@ export function useAiChat(isOpen: boolean) {
             chatMode: "test",
             quiz,
             quizContext,
+            ...(attemptId ? { quizAttemptId: attemptId } : {}),
+            quizStatus: "in_progress",
           },
         };
         setMessages((prev) => [...prev, modelMsg]);
@@ -920,7 +1016,14 @@ export function useAiChat(isOpen: boolean) {
         setChats((prev) =>
           prev.map((c) =>
             c.id === persistedChatId
-              ? { ...c, updatedAt: new Date(), model: selectedModel }
+              ? {
+                  ...c,
+                  updatedAt: new Date(),
+                  model: selectedModel,
+                  documentTitle,
+                  prompt,
+                  quizStatus: "in_progress",
+                }
               : c
           )
         );
@@ -955,30 +1058,58 @@ export function useAiChat(isOpen: boolean) {
         return;
       }
 
-      if (quizSaveRef.current) return;
+      if (quizSaveStatus === "saved") return;
 
-      quizSaveRef.current = "saving";
       setQuizSaveStatus("saving");
       setQuizSaveError(null);
 
       try {
+        const completeAnswers = activeQuiz.questions.reduce<QuizSelectionMap>(
+          (acc, question) => {
+            acc[question.id] = quizAnswers[question.id] ?? null;
+            return acc;
+          },
+          {}
+        );
+        setQuizAnswers(completeAnswers);
+
         const attemptId = await saveQuizAttempt({
           userId: uid,
+          attemptId: activeQuizAttemptId ?? undefined,
           documentId: activeQuiz.documentId,
           documentTitle: activeQuizDocumentTitle,
           sourceType: activeQuiz.sourceType,
           title: activeQuiz.title,
+          prompt: activeQuizContext?.prompt,
+          quiz: activeQuiz,
           result,
         });
+        setActiveQuizAttemptId(attemptId);
 
         if (activeChatId && activeQuizMessageId) {
           try {
             await updateMessageMetadata(uid, activeChatId, activeQuizMessageId, {
               quizResult: result,
-              quizAnswers: quizAnswers,
+              quizAnswers: completeAnswers,
+              quizAttemptId: attemptId,
+              quizStatus: "completed",
             });
           } catch (err) {
             console.error("[useAiChat] failed to update message metadata with quiz result:", err);
+          }
+        }
+        if (activeChatId) {
+          try {
+            await updateChatMeta(uid, activeChatId, { quizStatus: "completed" });
+            setChats((prev) =>
+              prev.map((chat) =>
+                chat.id === activeChatId
+                  ? { ...chat, quizStatus: "completed", updatedAt: new Date() }
+                  : chat
+              )
+            );
+          } catch {
+            // The attempt is authoritative; chat badges can refresh on next load.
           }
         }
 
@@ -995,28 +1126,80 @@ export function useAiChat(isOpen: boolean) {
         );
       } catch (err) {
         console.error("[useAiChat] saveQuizResult:", err);
-        quizSaveRef.current = null;
         setQuizSaveStatus("error");
         setQuizSaveError(
           "Test sonucunuz hesaplandı ancak kaydedilemedi. Lütfen bağlantı veya izin ayarlarını kontrol edin."
         );
       }
     },
-    [activeQuiz, activeQuizDocumentTitle, uid, activeChatId, activeQuizMessageId, quizAnswers]
+    [
+      activeQuiz,
+      activeQuizAttemptId,
+      activeQuizContext?.prompt,
+      activeQuizDocumentTitle,
+      uid,
+      activeChatId,
+      activeQuizMessageId,
+      quizAnswers,
+      quizSaveStatus,
+    ]
+  );
+
+  const changeQuestionIndex = useCallback(
+    (index: number) => {
+      const safeIndex = Math.max(0, index);
+      setCurrentQuestionIndex(safeIndex);
+      if (!uid || !activeQuizAttemptId || quizResult) return;
+      void updateQuizAttemptProgress({
+        userId: uid,
+        attemptId: activeQuizAttemptId,
+        currentQuestionIndex: safeIndex,
+      }).catch(() => {
+        setQuizSaveError("Test ilerlemesi kaydedilemedi.");
+      });
+    },
+    [activeQuizAttemptId, quizResult, uid]
   );
 
   const answerQuizQuestion = useCallback(
     (questionId: string, selectedOptionId: string) => {
       if (quizResult) return;
+      if (Object.prototype.hasOwnProperty.call(quizAnswers, questionId)) return;
+      const nextAnswers = { ...quizAnswers, [questionId]: selectedOptionId };
       setQuizAnswers((current) => {
         if (Object.prototype.hasOwnProperty.call(current, questionId)) return current;
-        return {
-          ...current,
-          [questionId]: selectedOptionId,
-        };
+        return nextAnswers;
       });
+      if (uid && activeQuizAttemptId) {
+        void saveQuizAttemptAnswer({
+          userId: uid,
+          attemptId: activeQuizAttemptId,
+          questionId,
+          selectedOptionId,
+          currentQuestionIndex,
+        }).catch(() => {
+          setQuizSaveError("Cevap kaydedilemedi. Bağlantınızı kontrol edin.");
+        });
+      }
+      if (uid && activeChatId && activeQuizMessageId && activeQuizAttemptId) {
+        void updateMessageMetadata(uid, activeChatId, activeQuizMessageId, {
+          quizAnswers: nextAnswers,
+          quizAttemptId: activeQuizAttemptId,
+          quizStatus: "in_progress",
+        }).catch(() => {
+          setQuizSaveError("Cevap geçmişe kaydedilemedi.");
+        });
+      }
     },
-    [quizResult]
+    [
+      activeChatId,
+      activeQuizAttemptId,
+      activeQuizMessageId,
+      currentQuestionIndex,
+      quizAnswers,
+      quizResult,
+      uid,
+    ]
   );
 
   const finishQuiz = useCallback(() => {
@@ -1057,10 +1240,11 @@ export function useAiChat(isOpen: boolean) {
     setChatMode,
     isChatModeLocked,
     lastTestPrompt,
+    activeGenerationId,
     activeQuiz,
     activeQuizContext,
     currentQuestionIndex,
-    setCurrentQuestionIndex,
+    setCurrentQuestionIndex: changeQuestionIndex,
     quizAnswers,
     answerQuizQuestion,
     quizResult,

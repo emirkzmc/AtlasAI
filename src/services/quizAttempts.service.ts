@@ -1,13 +1,21 @@
 import {
   collection,
   doc,
+  getDoc,
   getFirestore,
   runTransaction,
   serverTimestamp,
+  Timestamp,
+  updateDoc,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { app } from "./firebase.config";
-import type { QuizAttemptInput } from "../types/quiz.types";
+import type {
+  QuizAttemptInput,
+  QuizPayload,
+  QuizQuestion,
+  QuizResult,
+} from "../types/quiz.types";
 
 const db = getFirestore(app);
 
@@ -40,7 +48,7 @@ function clampPercent(value: number): number {
 }
 
 function getDateKey(): string {
-  return new Date().toISOString().split("T")[0];
+  return getLocalDateKey();
 }
 
 function getLocalDateKey(date = new Date()): string {
@@ -76,8 +84,286 @@ function logQuizSaveFailure(paths: string[], error: unknown): void {
   });
 }
 
-export async function saveQuizAttempt(input: QuizAttemptInput): Promise<string> {
+function assertCurrentUser(uid: string): void {
+  const authUid = getAuth(app).currentUser?.uid ?? null;
+  if (!authUid) {
+    throw new Error("Kullanıcı oturumu bulunamadı. Lütfen tekrar giriş yapın.");
+  }
+  if (authUid !== uid) {
+    throw new Error("Auth UID ile kayıt UID eşleşmiyor.");
+  }
+}
+
+function findOptionText(question: QuizQuestion, optionId: string | null): string | null {
+  if (!optionId) return null;
+  return question.options.find((option) => option.id === optionId)?.text ?? optionId;
+}
+
+function buildAttemptQuestions(quiz: QuizPayload) {
+  return quiz.questions.map((question, index) => ({
+    id: question.id,
+    order: index,
+    question: question.question,
+    options: question.options,
+    correctOptionId: question.correctOptionId,
+    correctAnswer: question.correctOptionId,
+    correctAnswerText: findOptionText(question, question.correctOptionId),
+    selectedOptionId: null,
+    selectedAnswer: null,
+    selectedAnswerText: null,
+    status: "unanswered",
+    isCorrect: null,
+    answeredAt: null,
+    explanation: question.explanation,
+    difficulty: question.difficulty,
+    documentReference: question.documentReference ?? null,
+  }));
+}
+
+function buildCompletedQuestions(
+  existingQuestions: unknown,
+  quiz: QuizPayload | undefined,
+  result: QuizResult
+) {
+  const sourceQuestions = Array.isArray(existingQuestions)
+    ? existingQuestions
+    : quiz
+      ? buildAttemptQuestions(quiz)
+      : [];
+  const resultByQuestion = new Map(
+    result.answers.map((answer) => [answer.questionId, answer])
+  );
+
+  return sourceQuestions.map((item) => {
+    const question = item as Record<string, unknown>;
+    const id = String(question.id ?? "");
+    const answer = resultByQuestion.get(id);
+    if (!answer) return question;
+
+    return {
+      ...question,
+      selectedOptionId: answer.selectedOptionId,
+      selectedAnswer: answer.selectedOptionId,
+      selectedAnswerText: answer.selectedOptionText,
+      status: answer.isBlank ? "blank" : "answered",
+      isCorrect: answer.isBlank ? false : answer.isCorrect,
+      answeredAt: question.answeredAt ?? null,
+    };
+  });
+}
+
+function readAttemptAnswers(questions: unknown): Record<string, string | null> {
+  if (!Array.isArray(questions)) return {};
+
+  return questions.reduce<Record<string, string | null>>((acc, item) => {
+    const question = item as Record<string, unknown>;
+    const id = typeof question.id === "string" ? question.id : null;
+    const status = typeof question.status === "string" ? question.status : "unanswered";
+    if (!id || status === "unanswered") return acc;
+    const selected = question.selectedOptionId ?? question.selectedAnswer ?? null;
+    acc[id] = typeof selected === "string" ? selected : null;
+    return acc;
+  }, {});
+}
+
+export async function createQuizAttempt(input: {
+  userId: string;
+  chatId: string | null;
+  messageId?: string | null;
+  generationId: string;
+  documentId: string | null;
+  documentTitle: string | null;
+  sourceType: QuizAttemptInput["sourceType"];
+  title: string;
+  prompt: string;
+  quiz: QuizPayload;
+}): Promise<string> {
+  assertCurrentUser(input.userId);
+
   const attemptRef = doc(collection(db, "users", input.userId, "quizAttempts"));
+  await runTransaction(db, async (transaction) => {
+    transaction.set(attemptRef, {
+      id: attemptRef.id,
+      userId: input.userId,
+      chatId: input.chatId,
+      messageId: input.messageId ?? null,
+      generationId: input.generationId,
+      documentId: input.documentId,
+      documentTitle: input.documentTitle,
+      documentName: input.documentTitle,
+      sourceType: input.sourceType,
+      prompt: input.prompt,
+      title: input.title,
+      mode: "test",
+      status: "in_progress",
+      totalQuestions: input.quiz.questions.length,
+      correctCount: 0,
+      wrongCount: 0,
+      blankCount: 0,
+      scorePercent: 0,
+      successRate: 0,
+      currentQuestionIndex: 0,
+      questions: buildAttemptQuestions(input.quiz),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      completedAt: null,
+    });
+  });
+
+  return attemptRef.id;
+}
+
+export async function updateQuizAttemptMessageId(input: {
+  userId: string;
+  attemptId: string;
+  messageId: string;
+}): Promise<void> {
+  assertCurrentUser(input.userId);
+  await updateDoc(doc(db, "users", input.userId, "quizAttempts", input.attemptId), {
+    messageId: input.messageId,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function saveQuizAttemptAnswer(input: {
+  userId: string;
+  attemptId: string;
+  questionId: string;
+  selectedOptionId: string;
+  currentQuestionIndex: number;
+}): Promise<void> {
+  assertCurrentUser(input.userId);
+  const attemptRef = doc(db, "users", input.userId, "quizAttempts", input.attemptId);
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(attemptRef);
+    if (!snap.exists()) throw new Error("Test kaydı bulunamadı.");
+
+    const data = snap.data();
+    if (data.status === "completed") return;
+
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+    const updatedQuestions = questions.map((item) => {
+      const question = item as Record<string, unknown>;
+      if (question.id !== input.questionId || question.status === "answered") return question;
+
+      const isCorrect = input.selectedOptionId === question.correctOptionId;
+      const optionText = Array.isArray(question.options)
+        ? (question.options as Array<{ id?: string; text?: string }>).find(
+            (option) => option.id === input.selectedOptionId
+          )?.text ?? input.selectedOptionId
+        : input.selectedOptionId;
+
+      return {
+        ...question,
+        selectedOptionId: input.selectedOptionId,
+        selectedAnswer: input.selectedOptionId,
+        selectedAnswerText: optionText,
+        status: "answered",
+        isCorrect,
+        answeredAt: Timestamp.now(),
+      };
+    });
+
+    const correctCount = updatedQuestions.filter(
+      (item) => (item as Record<string, unknown>).isCorrect === true
+    ).length;
+    const wrongCount = updatedQuestions.filter((item) => {
+      const question = item as Record<string, unknown>;
+      return question.status === "answered" && question.isCorrect === false;
+    }).length;
+    const totalQuestions = readNumber(data, ["totalQuestions"]) || updatedQuestions.length;
+
+    transaction.update(attemptRef, {
+      questions: updatedQuestions,
+      correctCount,
+      wrongCount,
+      blankCount: 0,
+      scorePercent: nextRate(correctCount, totalQuestions),
+      successRate: nextRate(correctCount, totalQuestions),
+      currentQuestionIndex: input.currentQuestionIndex,
+      updatedAt: serverTimestamp(),
+    });
+  });
+}
+
+export async function updateQuizAttemptProgress(input: {
+  userId: string;
+  attemptId: string;
+  currentQuestionIndex: number;
+}): Promise<void> {
+  assertCurrentUser(input.userId);
+  await updateDoc(doc(db, "users", input.userId, "quizAttempts", input.attemptId), {
+    currentQuestionIndex: input.currentQuestionIndex,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function getQuizAttemptProgress(
+  userId: string,
+  attemptId: string
+): Promise<{
+  answers: Record<string, string | null>;
+  status: "in_progress" | "completed" | "abandoned";
+  currentQuestionIndex: number;
+  result: QuizResult | null;
+} | null> {
+  assertCurrentUser(userId);
+  const snap = await getDoc(doc(db, "users", userId, "quizAttempts", attemptId));
+  if (!snap.exists()) return null;
+
+  const data = snap.data();
+  const answers = readAttemptAnswers(data.questions);
+  const status =
+    data.status === "completed" || data.status === "abandoned"
+      ? data.status
+      : "in_progress";
+  const result =
+    status === "completed"
+      ? {
+          totalQuestions: readNumber(data, ["totalQuestions"]),
+          correctCount: readNumber(data, ["correctCount"]),
+          wrongCount: readNumber(data, ["wrongCount"]),
+          blankCount: readNumber(data, ["blankCount"]),
+          successRate: readNumber(data, ["scorePercent", "successRate"]),
+          answers: Array.isArray(data.questions)
+            ? data.questions.map((item) => {
+                const question = item as Record<string, unknown>;
+                const selectedOptionId =
+                  typeof question.selectedOptionId === "string"
+                    ? question.selectedOptionId
+                    : null;
+                return {
+                  questionId: String(question.id ?? ""),
+                  question: String(question.question ?? ""),
+                  selectedOptionId,
+                  selectedOptionText:
+                    typeof question.selectedAnswerText === "string"
+                      ? question.selectedAnswerText
+                      : null,
+                  correctOptionId: String(question.correctOptionId ?? question.correctAnswer ?? ""),
+                  correctOptionText: String(question.correctAnswerText ?? question.correctOptionId ?? ""),
+                  isCorrect: question.isCorrect === true,
+                  isBlank: question.status === "blank",
+                  explanation: String(question.explanation ?? ""),
+                };
+              })
+            : [],
+        }
+      : null;
+
+  return {
+    answers,
+    status,
+    currentQuestionIndex: readNumber(data, ["currentQuestionIndex"]),
+    result,
+  };
+}
+
+export async function saveQuizAttempt(input: QuizAttemptInput): Promise<string> {
+  const attemptRef = input.attemptId
+    ? doc(db, "users", input.userId, "quizAttempts", input.attemptId)
+    : doc(collection(db, "users", input.userId, "quizAttempts"));
   const statsRef = doc(db, "users", input.userId, "stats", "main");
   const performanceRef = doc(db, "users", input.userId, "stats", "performance");
   const activityRef = doc(db, "users", input.userId, "activityLogs", getDateKey());
@@ -113,7 +399,7 @@ export async function saveQuizAttempt(input: QuizAttemptInput): Promise<string> 
   ];
   const authUid = getAuth(app).currentUser?.uid ?? null;
 
-  console.info("[Quiz Save Debug]", {
+  void ({
     authUid,
     targetUid: input.userId,
     projectId: app.options.projectId,
@@ -130,6 +416,8 @@ export async function saveQuizAttempt(input: QuizAttemptInput): Promise<string> 
 
   try {
     await runTransaction(db, async (transaction) => {
+      const attemptSnap = await transaction.get(attemptRef);
+      if (attemptSnap.exists() && attemptSnap.data().status === "completed") return;
       const statsSnap = await transaction.get(statsRef);
       const performanceSnap = await transaction.get(performanceRef);
       const activitySnap = await transaction.get(activityRef);
@@ -157,16 +445,29 @@ export async function saveQuizAttempt(input: QuizAttemptInput): Promise<string> 
         userId: input.userId,
         documentId: input.documentId,
         documentTitle: input.documentTitle,
+        documentName: input.documentTitle,
         sourceType: input.sourceType,
         title: input.title,
+        prompt: input.prompt ?? null,
+        mode: "test",
+        status: "completed",
         totalQuestions: input.result.totalQuestions,
         correctCount: input.result.correctCount,
         wrongCount: input.result.wrongCount,
         blankCount: input.result.blankCount,
+        scorePercent: input.result.successRate,
         successRate: input.result.successRate,
         answers: input.result.answers,
-        createdAt: serverTimestamp(),
-      }
+        questions: buildCompletedQuestions(
+          attemptSnap.exists() ? attemptSnap.data().questions : undefined,
+          input.quiz,
+          input.result
+        ),
+        completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        ...(!attemptSnap.exists() ? { createdAt: serverTimestamp() } : {}),
+      },
+      { merge: true }
     );
 
     transaction.set(

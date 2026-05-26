@@ -27,6 +27,9 @@ export interface QuizPayload {
   questions: QuizQuestion[];
 }
 
+export type QuizAttemptStatus = "in_progress" | "completed" | "abandoned";
+export type QuizQuestionAttemptStatus = "unanswered" | "answered" | "blank";
+
 export interface QuizContextInfo {
   prompt: string;
   documentId: string | null;
@@ -60,10 +63,13 @@ export interface QuizResult {
 
 export interface QuizAttemptInput {
   userId: string;
+  attemptId?: string;
   documentId: string | null;
   documentTitle: string | null;
   sourceType: QuizSourceType;
   title: string;
+  prompt?: string;
+  quiz?: QuizPayload;
   result: QuizResult;
 }
 

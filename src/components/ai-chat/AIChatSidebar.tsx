@@ -36,6 +36,15 @@ export default function AIChatSidebar({
     if (ok) onDeleteChat(chat.id);
   }
 
+  function formatChatDate(date: Date): string {
+    return new Intl.DateTimeFormat("tr-TR", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  }
+
   return (
     <motion.aside
       initial={false}
@@ -129,13 +138,25 @@ export default function AIChatSidebar({
                     <button
                       type="button"
                       onClick={() => onSelectChat(chat.id)}
-                      className={`min-w-0 flex-1 text-left px-2 py-2.5 rounded-lg text-[14px] transition-colors cursor-pointer border-0 truncate whitespace-nowrap overflow-hidden text-ellipsis bg-transparent ${activeChatId === chat.id
+                      className={`min-w-0 flex-1 text-left px-2 py-2.5 rounded-lg transition-colors cursor-pointer border-0 overflow-hidden bg-transparent ${activeChatId === chat.id
                         ? "font-medium text-white"
                         : "font-normal text-white/95"
                         }`}
                       title={chat.title}
                     >
-                      {chat.title}
+                      <span className="block truncate whitespace-nowrap text-[14px]">
+                        {chat.title}
+                      </span>
+                      <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] font-normal text-white/70">
+                        {chat.mode === "test" && (
+                          <span className="shrink-0 rounded-full bg-white/15 px-1.5 py-0.5">
+                            {chat.quizStatus === "completed" ? "Tamamlandı" : "Devam"}
+                          </span>
+                        )}
+                        <span className="truncate">
+                          {chat.documentTitle ?? chat.prompt ?? formatChatDate(chat.updatedAt)}
+                        </span>
+                      </span>
                     </button>
                     <button
                       type="button"

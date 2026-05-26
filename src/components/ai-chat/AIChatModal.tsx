@@ -79,7 +79,7 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-6 md:p-8"
+      className="atlasai-ai-modal fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-6 md:p-8"
       style={{ backgroundColor: "rgba(0, 0, 0, 0.6)" }}
       onClick={onClose}
       role="dialog"
