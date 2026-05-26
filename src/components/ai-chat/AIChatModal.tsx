@@ -23,6 +23,11 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
     displayName.split(/\s+/)[0] ||
     user?.email?.split("@")[0] ||
     "Kullanıcı";
+
+  const handleOpenQuiz = useCallback((messageId: string) => {
+    chat.openQuiz(messageId);
+  }, [chat]);
+
   const shouldShowQuizWorkspace =
     chat.chatMode === "test" &&
     (chat.isSending ||
@@ -140,6 +145,7 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
               isSending={chat.isSending}
               userFirstName={firstName}
               centeredComposer={isEmptyChat ? composer : null}
+              onOpenQuiz={handleOpenQuiz}
             />
           ) : (
             <div className="flex-1 min-h-0 overflow-y-auto px-6 md:px-10 pt-4 pb-6">
@@ -162,6 +168,7 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                 onAskAI={chat.askQuizQuestion}
                 saveStatus={chat.quizSaveStatus}
                 saveError={chat.quizSaveError}
+                onOpenQuiz={handleOpenQuiz}
               />
             </div>
           )}

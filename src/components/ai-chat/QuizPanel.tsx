@@ -155,7 +155,7 @@ export default function QuizPanel({
   if (result && !showReview) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4 rounded-[22px] border border-[#AFA2A2] bg-[#C8BDBD] p-5 shadow-sm">
-        <section className="rounded-[16px] bg-[#D3BFBF] px-5 py-4">
+        <section className="rounded-2xl bg-[#D3BFBF] px-5 py-4">
           <p className="m-0 text-[12px] font-semibold uppercase tracking-wide text-[#5B4F4B]">
             Test Sonucu
           </p>
@@ -267,7 +267,7 @@ export default function QuizPanel({
                 type="button"
                 onClick={() => selectOption(option.id)}
                 disabled={answered}
-                className={`flex min-h-14 items-center gap-5 rounded-[12px] border px-5 py-3 text-left text-[15px] font-medium transition-colors cursor-pointer disabled:cursor-default ${getOptionClass(option.id)}`}
+                className={`flex min-h-14 items-center gap-5 rounded-xl border px-5 py-3 text-left text-[15px] font-medium transition-colors cursor-pointer disabled:cursor-default ${getOptionClass(option.id)}`}
               >
                 <span className="w-8 shrink-0 text-center text-[18px] font-semibold">
                   {option.id}
@@ -305,7 +305,7 @@ export default function QuizPanel({
           <button
             type="button"
             onClick={() => onAskAI(buildAskPrompt(question))}
-            className="h-11 rounded-[12px] border-0 bg-transparent px-3 text-[13px] font-semibold text-[#5B4F4B] transition-colors hover:bg-white/35 cursor-pointer"
+            className="h-11 rounded-xl border-0 bg-transparent px-3 text-[13px] font-semibold text-[#5B4F4B] transition-colors hover:bg-white/35 cursor-pointer"
           >
             Yapay Zekaya Sor
           </button>
@@ -315,7 +315,7 @@ export default function QuizPanel({
               <button
                 type="button"
                 onClick={() => onQuestionChange(Math.max(0, currentIndex - 1))}
-                className="h-11 rounded-[12px] border-0 bg-transparent px-5 text-[13px] font-semibold text-[#5B4F4B] transition-colors hover:bg-white/35 cursor-pointer"
+                className="h-11 rounded-xl border-0 bg-transparent px-5 text-[13px] font-semibold text-[#5B4F4B] transition-colors hover:bg-white/35 cursor-pointer"
               >
                 Geri
               </button>

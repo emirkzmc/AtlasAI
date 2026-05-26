@@ -20,6 +20,41 @@ body {
   font-family: inherit;
 }
 
+/* Global Scrollbar */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #8B6B6B transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8B6B6B;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6c5151;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Hide scrollbar arrows everywhere */
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 .atlasai-ai-modal,
 .atlasai-ai-modal * {
   scrollbar-width: thin;

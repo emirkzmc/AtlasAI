@@ -21,7 +21,7 @@ export default function ModeSelector({
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const modeLabel = MODES.find((mode) => mode.id === value)?.label ?? "Ders Modu";
+  const modeLabel = value === "test" ? "Test" : "Ders";
 
   useEffect(() => {
     if (!open) return;
@@ -46,7 +46,7 @@ export default function ModeSelector({
         type="button"
         onClick={() => setOpen((current) => !current)}
         disabled={disabled}
-        className="flex h-10 min-w-[136px] max-w-[160px] items-center justify-between gap-2 rounded-lg border border-white/30 bg-transparent px-3.5 text-[12px] font-medium text-white transition-colors hover:border-white/40 hover:bg-[#8B6B6B]/45 focus:outline-none focus:ring-2 focus:ring-white/20 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-10 w-auto items-center justify-between gap-2 rounded-full border-0 bg-transparent px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#8B6B6B]/45 focus:outline-none focus:ring-2 focus:ring-white/20 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
       >
         <span className="truncate">{modeLabel}</span>
         <svg
@@ -69,7 +69,7 @@ export default function ModeSelector({
           {rect &&
             createPortal(
               <ul
-                className="fixed z-200 m-0 min-w-[160px] list-none rounded-lg border border-[#E5E5E5] bg-white py-1 shadow-lg"
+                className="fixed z-200 m-0 min-w-40 list-none rounded-lg border border-[#E5E5E5] bg-white py-1 shadow-lg"
                 style={{
                   left: Math.max(12, Math.min(rect.right - 160, window.innerWidth - 172)),
                   top: Math.min(rect.bottom + 8, window.innerHeight - 128),

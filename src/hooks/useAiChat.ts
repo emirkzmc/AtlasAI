@@ -790,8 +790,8 @@ export function useAiChat(isOpen: boolean) {
       }
 
       const generationId = `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      let chatId: string | null = null;
-      let persistedChatId: string | null = null;
+      let chatId: string | null = activeChatId;
+      let persistedChatId: string | null = activeChatId;
 
       resetQuizState();
       setActiveGenerationId(generationId);
@@ -1230,6 +1230,62 @@ export function useAiChat(isOpen: boolean) {
     [chatMode, sendLessonMessage, sendTestMessage]
   );
 
+  const openQuiz = useCallback(
+    async (messageId: string) => {
+      const message = messages.find((m) => m.id === messageId);
+      if (!message || !message.metadata?.quiz) return;
+
+      const storedQuiz = {
+        messageId: message.id,
+        quiz: message.metadata.quiz,
+        context: message.metadata.quizContext ?? null,
+        quizResult: message.metadata.quizResult ?? null,
+        quizAnswers: message.metadata.quizAnswers ?? null,
+        quizAttemptId: message.metadata.quizAttemptId ?? null,
+        quizStatus: message.metadata.quizStatus ?? null,
+      };
+
+      let attemptProgress = null;
+      if (uid && storedQuiz.quizAttemptId && !storedQuiz.quizResult) {
+        attemptProgress = await getQuizAttemptProgress(uid, storedQuiz.quizAttemptId);
+      }
+      const restoredAnswers = cloneAnswers(
+        attemptProgress?.answers ?? storedQuiz.quizAnswers
+      );
+      const restoredResult = attemptProgress?.result ?? storedQuiz.quizResult;
+
+      setChatModeState("test");
+      setActiveQuiz(cloneQuizPayload(storedQuiz.quiz));
+      setActiveQuizContext(storedQuiz.context);
+      setActiveQuizDocumentTitle(storedQuiz.context?.documentTitle ?? null);
+      setActiveQuizMessageId(storedQuiz.messageId);
+      setActiveQuizAttemptId(storedQuiz.quizAttemptId);
+      setActiveGenerationId(storedQuiz.quizAttemptId);
+      setLastTestPrompt(storedQuiz.context?.prompt ?? "");
+
+      if (restoredResult) {
+        setCurrentQuestionIndex(
+          Math.min(
+            attemptProgress?.currentQuestionIndex ?? storedQuiz.quiz.questions.length - 1,
+            Math.max(storedQuiz.quiz.questions.length - 1, 0)
+          )
+        );
+        setQuizAnswers(restoredAnswers);
+        setQuizResult(restoredResult);
+        setQuizSaveStatus("saved");
+        quizSaveRef.current = storedQuiz.quizAttemptId ?? "already_saved";
+      } else {
+        setCurrentQuestionIndex(attemptProgress?.currentQuestionIndex ?? 0);
+        setQuizAnswers(restoredAnswers);
+        setQuizResult(null);
+        setQuizSaveStatus("idle");
+        setQuizSaveError(null);
+        quizSaveRef.current = storedQuiz.quizAttemptId;
+      }
+    },
+    [messages, uid]
+  );
+
   return {
     chats,
     activeChatId,
@@ -1275,5 +1331,6 @@ export function useAiChat(isOpen: boolean) {
     addDocumentAttachment,
     removeAttachment,
     loadChats,
+    openQuiz,
   };
 }

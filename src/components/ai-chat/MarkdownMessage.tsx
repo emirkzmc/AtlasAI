@@ -70,7 +70,7 @@ export default function MarkdownMessage({
         {content}
       </ReactMarkdown>
       {live && (
-        <span className="inline-block h-[1em] w-[2px] animate-pulse bg-[#5B4F4B]/50 align-middle" />
+        <span className="inline-block h-[1em] w-0.5 animate-pulse bg-[#5B4F4B]/50 align-middle" />
       )}
     </div>
   );

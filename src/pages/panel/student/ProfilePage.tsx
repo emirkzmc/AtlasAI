@@ -53,8 +53,8 @@ function DailyQuestionActivityChart({
     datasets: [
       {
         data: data.map((item) => item.questionsSolved),
-        backgroundColor: "#E8B6C3",
-        borderColor: "#D991A4",
+        backgroundColor: "#998A85",
+        borderColor: "#b09f99",
         borderWidth: 1,
         borderRadius: 8,
         borderSkipped: false,
@@ -102,7 +102,7 @@ function DailyQuestionActivityChart({
 
   if (loading) {
     return (
-      <div className="h-full min-h-[190px] flex items-center justify-center text-[#999] text-[14px]">
+      <div className="h-full min-h-47.5 flex items-center justify-center text-[#999] text-[14px]">
         Yükleniyor...
       </div>
     );
@@ -110,7 +110,7 @@ function DailyQuestionActivityChart({
 
   if (error) {
     return (
-      <div className="h-full min-h-[190px] flex items-center justify-center text-center text-red-500 text-[13px]">
+      <div className="h-full min-h-47.5 flex items-center justify-center text-center text-red-500 text-[13px]">
         Günlük çözüm verisi yüklenemedi.
       </div>
     );
@@ -118,14 +118,14 @@ function DailyQuestionActivityChart({
 
   if (!hasData) {
     return (
-      <div className="h-full min-h-[190px] flex items-center justify-center text-center text-[#999] text-[14px]">
+      <div className="h-full min-h-47.5 flex items-center justify-center text-center text-[#999] text-[14px]">
         Son 7 günde henüz soru çözülmedi
       </div>
     );
   }
 
   return (
-    <div className="h-[210px] w-full">
+    <div className="h-52.5 w-full">
       <Bar data={chartData} options={options} />
     </div>
   );
@@ -393,7 +393,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-col gap-8 max-w-[1000px] mx-auto pb-10 w-full">
+    <div className="flex flex-col gap-8 max-w-250 mx-auto pb-10 w-full">
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 text-center sm:text-left">
         <div className="flex flex-col items-start gap-2 shrink-0">
           <ProfileAvatar size={120} editable onError={setPhotoError} />

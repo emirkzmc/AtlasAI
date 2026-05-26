@@ -188,20 +188,29 @@ export default function AIChatInput({
             disabled={disabled}
             placeholder={placeholder}
             rows={2}
-            className="w-full bg-transparent text-white/90 placeholder:text-white/50 text-[15px] px-6 pt-5 pb-2 resize-none border-0 outline-none min-h-[56px] max-h-[120px] font-[inherit]"
+            className="w-full bg-transparent text-white/90 placeholder:text-white/50 text-[15px] px-6 pt-5 pb-2 resize-none border-0 outline-none min-h-14 max-h-30 font-[inherit]"
           />
 
           <div className="flex flex-wrap items-end justify-between gap-2 px-4 pb-4 pt-1">
-            <button
-              ref={documentButtonRef}
-              type="button"
-              onClick={() => setDocumentPickerOpen((open) => !open)}
-              disabled={disabled}
-              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/25 text-white text-2xl font-light transition-colors cursor-pointer border-0 shrink-0 disabled:opacity-50 bg-transparent"
-              aria-label="Doküman seç"
-            >
-              +
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                ref={documentButtonRef}
+                type="button"
+                onClick={() => setDocumentPickerOpen((open) => !open)}
+                disabled={disabled}
+                className={`w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/25 text-white text-2xl font-light transition-transform duration-300 cursor-pointer border-0 shrink-0 disabled:opacity-50 bg-transparent ${documentPickerOpen ? "rotate-45" : ""}`}
+                aria-label="Doküman seç"
+              >
+                +
+              </button>
+              {!modeLocked && (
+                <ModeSelector
+                  value={chatMode}
+                  onChange={onModeChange}
+                  disabled={disabled}
+                />
+              )}
+            </div>
 
             {documentPickerOpen && (
               <>
@@ -213,13 +222,13 @@ export default function AIChatInput({
                 {documentPickerRect &&
                   createPortal(
                     <div
-                      className="fixed z-200 w-[360px] max-w-[calc(100vw-24px)] rounded-2xl border border-[#E5E5E5] bg-white shadow-xl overflow-hidden"
+                      className="fixed z-200 w-90 max-w-[calc(100vw-24px)] rounded-2xl border border-[#E5E5E5] bg-white shadow-xl overflow-hidden"
                       style={{
                         left: Math.max(
                           12,
                           Math.min(documentPickerRect.left, window.innerWidth - 372)
                         ),
-                        top: Math.min(documentPickerRect.bottom + 10, window.innerHeight - 360),
+                        bottom: Math.max(12, window.innerHeight - documentPickerRect.top + 10),
                       }}
                     >
                       <div className="px-4 py-3 border-b border-[#EFEFEF]">
@@ -231,7 +240,7 @@ export default function AIChatInput({
                         </p>
                       </div>
 
-                      <div className="max-h-[280px] overflow-y-auto p-2">
+                      <div className="max-h-70 overflow-y-auto p-2">
                         {isLoadingDocuments ? (
                           <div className="px-3 py-8 text-center text-[13px] text-[#737373]">
                             Dokümanlar yükleniyor...
@@ -294,13 +303,6 @@ export default function AIChatInput({
                 onChange={onModelChange}
                 disabled={disabled}
               />
-              {!modeLocked && (
-                <ModeSelector
-                  value={chatMode}
-                  onChange={onModeChange}
-                  disabled={disabled}
-                />
-              )}
               <button
                 type="button"
                 onClick={handleSendClick}

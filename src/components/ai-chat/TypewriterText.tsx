@@ -38,7 +38,7 @@ export default function TypewriterText({ text, live = false, className = "" }: T
     return (
       <span className={className}>
         {text}
-        <span className="inline-block w-[2px] h-[1em] bg-[#5B4F4B]/50 ml-0.5 animate-pulse align-middle" />
+        <span className="inline-block w-0.5 h-[1em] bg-[#5B4F4B]/50 ml-0.5 animate-pulse align-middle" />
       </span>
     );
   }
