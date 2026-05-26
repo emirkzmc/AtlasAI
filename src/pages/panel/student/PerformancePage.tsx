@@ -50,7 +50,7 @@ export default function PerformancePage() {
   const blank = summary.blank ?? 0;
   const answeredTotal = correct + wrong + blank;
   const hasDistributionData = answeredTotal > 0;
-  const hasDailyTrend = dailyTrend.length > 0;
+  const hasDailyTrend = dailyTrend.some((item) => item.totalQuestionsAnswered > 0);
 
   const distributionData = {
     labels: ["Doğru", "Yanlış", "Boş"],
@@ -108,7 +108,12 @@ export default function PerformancePage() {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: (ctx) => ` Başarı: ${ctx.parsed.y}%`,
+          label: (ctx) => {
+            const item = dailyTrend[ctx.dataIndex];
+            const correctCount = item?.totalCorrectAnswers ?? 0;
+            const totalCount = item?.totalQuestionsAnswered ?? 0;
+            return ` Başarı: ${ctx.parsed.y}% (${correctCount}/${totalCount})`;
+          },
         },
         backgroundColor: "#1a1a1a",
         titleColor: "#fff",
@@ -127,12 +132,12 @@ export default function PerformancePage() {
         },
       },
       y: {
-        min: 55,
+        min: 0,
         max: 100,
         border: { color: "#D8D8D8" },
         grid: { color: "#E5E5E5" },
         ticks: {
-          stepSize: 5,
+          stepSize: 20,
           font: { family: "Poppins, sans-serif", size: 12 },
           color: "#1a1a1a",
         },
@@ -202,7 +207,11 @@ export default function PerformancePage() {
           <h3 className="text-[11px] font-semibold text-[#737373] uppercase tracking-wide mb-5">
             Günlük Başarı Trendi
           </h3>
-          {hasDailyTrend ? (
+          {loading ? (
+            <div className="h-[245px] flex items-center justify-center text-[14px] text-[#999]">
+              YÃ¼kleniyor...
+            </div>
+          ) : hasDailyTrend ? (
             <div className="h-[245px]">
               <Line data={dailyTrendData} options={dailyTrendOptions} />
             </div>

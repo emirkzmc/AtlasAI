@@ -20,6 +20,7 @@ import type {
   GeminiModelId,
 } from "../types/aiChat.types";
 import type { AiChatMode } from "../types/quiz.types";
+import type { QuizAttemptStatus } from "../types/quiz.types";
 
 const db = getFirestore(app);
 
@@ -63,6 +64,9 @@ export async function fetchUserChats(uid: string): Promise<AiChatSummary[]> {
         title: (data.title as string) ?? "Yeni sohbet",
         model: (data.model as GeminiModelId) ?? "gemini-2.5-flash",
         mode: data.mode as AiChatMode | undefined,
+        documentTitle: typeof data.documentTitle === "string" ? data.documentTitle : null,
+        prompt: typeof data.prompt === "string" ? data.prompt : null,
+        quizStatus: (data.quizStatus as QuizAttemptStatus | undefined) ?? null,
         createdAt: (data.createdAt as Timestamp)?.toDate() ?? new Date(),
         updatedAt: (data.updatedAt as Timestamp)?.toDate() ?? new Date(),
       };
@@ -138,7 +142,14 @@ export async function deleteChat(uid: string, chatId: string): Promise<void> {
 export async function updateChatMeta(
   uid: string,
   chatId: string,
-  patch: { title?: string; model?: GeminiModelId; mode?: AiChatMode }
+  patch: {
+    title?: string;
+    model?: GeminiModelId;
+    mode?: AiChatMode;
+    documentTitle?: string | null;
+    prompt?: string | null;
+    quizStatus?: QuizAttemptStatus | null;
+  }
 ): Promise<void> {
   await updateDoc(doc(db, "users", uid, "aiChats", chatId), {
     ...patch,

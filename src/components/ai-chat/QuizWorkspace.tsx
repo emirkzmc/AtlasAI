@@ -194,6 +194,15 @@ export default function QuizWorkspace({
                 </div>
               </div>
             )}
+
+            {isLoading && !streamingContent && quiz && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-[#E8E8E8] bg-white px-4 py-2 text-[13px] text-[#5B4F4B] shadow-sm">
+                  <span>Yükleniyor</span>
+                  <LoadingDots />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

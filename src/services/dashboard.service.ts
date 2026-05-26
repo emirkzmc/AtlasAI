@@ -24,17 +24,29 @@ const db = getFirestore(app);
 function getDateKey(offsetDays: number = 0): string {
   const d = new Date();
   d.setDate(d.getDate() - offsetDays);
-  return d.toISOString().split("T")[0]; // "YYYY-MM-DD"
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getDayLabel(dateKey: string): string {
   const dayNames = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cts"];
-  // Use noon UTC to avoid timezone day-shift issues
-  const d = new Date(`${dateKey}T12:00:00Z`);
-  return dayNames[d.getUTCDay()];
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const d = new Date(year, (month ?? 1) - 1, day ?? 1);
+  return dayNames[d.getDay()];
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+function readNumber(data: Record<string, unknown>, keys: string[]): number {
+  for (const key of keys) {
+    const value = data[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+
+  return 0;
+}
 
 export interface DashboardStats {
   totalQuestionsGenerated: number;
@@ -62,6 +74,12 @@ export interface ActivityDay {
   dateKey: string;
   label: string;
   activeCount: number;
+}
+
+export interface DailyQuestionActivityDay {
+  dateKey: string;
+  label: string;
+  questionsSolved: number;
 }
 
 // ─── Activity & Streak ───────────────────────────────────────────────────────
@@ -276,6 +294,59 @@ export async function getLast7DaysActivity(uid: string): Promise<ActivityDay[]> 
         return { ...day, activeCount: count };
       }
       return day;
+    })
+  );
+
+  return results.map((result, idx) =>
+    result.status === "fulfilled" ? result.value : days[idx]
+  );
+}
+
+/**
+ * Returns solved question counts for the last 7 local days (oldest -> today).
+ * Missing days are included with 0 so compact charts stay stable.
+ */
+export async function getLast7DaysQuestionActivity(
+  uid: string
+): Promise<DailyQuestionActivityDay[]> {
+  const days: DailyQuestionActivityDay[] = Array.from({ length: 7 }, (_, i) => {
+    const key = getDateKey(6 - i);
+    return { dateKey: key, label: getDayLabel(key), questionsSolved: 0 };
+  });
+
+  const results = await Promise.allSettled(
+    days.map(async (day) => {
+      const logDoc = await getDoc(
+        doc(db, "users", uid, "activityLogs", day.dateKey)
+      );
+      let questionsSolved = 0;
+
+      if (logDoc.exists()) {
+        const data = logDoc.data();
+        questionsSolved = readNumber(data, [
+          "questionsSolved",
+          "totalQuestionsAnswered",
+          "totalQuestions",
+        ]);
+      }
+
+      if (questionsSolved === 0) {
+        const performanceDoc = await getDoc(
+          doc(db, "users", uid, "performanceDaily", day.dateKey)
+        );
+        if (performanceDoc.exists()) {
+          questionsSolved = readNumber(performanceDoc.data(), [
+            "totalQuestionsAnswered",
+            "totalQuestions",
+            "total",
+          ]);
+        }
+      }
+
+      return {
+        ...day,
+        questionsSolved,
+      };
     })
   );
 
