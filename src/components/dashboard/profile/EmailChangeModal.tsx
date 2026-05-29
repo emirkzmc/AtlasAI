@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useScrollLock } from "../../../hooks/useScrollLock";
 
 interface EmailChangeModalProps {
   isOpen: boolean;
@@ -46,6 +47,8 @@ export default function EmailChangeModal({
   const [currentPassword, setCurrentPassword] = useState("");
   const passwordRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
+
+  useScrollLock(isOpen);
 
   // Modal açılınca şifre inputuna odaklan
   useEffect(() => {

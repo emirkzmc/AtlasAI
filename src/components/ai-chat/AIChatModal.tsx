@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from "react";
+import { useScrollLock } from "../../hooks/useScrollLock";
 import { createPortal } from "react-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useAiChat } from "../../hooks/useAiChat";
@@ -51,13 +52,13 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
     [onClose]
   );
 
+  useScrollLock(isOpen);
+
   useEffect(() => {
     if (!isOpen) return;
     document.addEventListener("keydown", handleEscape);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "";
     };
   }, [isOpen, handleEscape]);
 
