@@ -33,14 +33,6 @@ type QuizWorkspaceProps = {
   onOpenQuiz?: (messageId: string) => void;
 };
 
-function getDocumentType(context: QuizContextInfo | null): string {
-  if (!context?.documentTitle) return "GENEL";
-  const extension = context.documentTitle.split(".").pop();
-  if (extension && extension !== context.documentTitle) return extension.toUpperCase();
-  return context.documentType?.split("/").pop()?.toUpperCase() ?? "DOKUMAN";
-}
-
-
 
 function TestLoadingPanel({ context }: { context: QuizContextInfo | null }) {
   const loadingTitle = context?.documentTitle
