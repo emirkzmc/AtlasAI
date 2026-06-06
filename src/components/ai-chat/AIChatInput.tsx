@@ -236,7 +236,7 @@ export default function AIChatInput({
                           Doküman seç
                         </p>
                         <p className="m-0 mt-0.5 text-[11px] text-[#737373]">
-                          Dokümanlarım sayfasındaki kayıtlar
+                          Tek doküman seçilir; yeni seçim mevcut dokümanı değiştirir.
                         </p>
                       </div>
 

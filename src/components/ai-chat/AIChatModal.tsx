@@ -157,7 +157,7 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
                 composer={composer}
                 messages={chat.messages}
                 streamingContent={chat.streamingContent}
-                isLoading={chat.isSending && !chat.activeQuiz}
+                isLoading={chat.isSending}
                 error={chat.error}
                 currentQuestionIndex={chat.currentQuestionIndex}
                 answers={chat.quizAnswers}

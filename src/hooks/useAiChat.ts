@@ -248,6 +248,7 @@ export function useAiChat(isOpen: boolean) {
   const abortRef = useRef<AbortController | null>(null);
   const quizSaveRef = useRef<string | null>(null);
   const wasOpenRef = useRef(false);
+  const documentSelectionRef = useRef(0);
   const isChatModeLocked = Boolean(activeChatId || messages.length > 0 || activeQuiz || activeQuizContext || isSending);
 
   const resetQuizState = useCallback(() => {
@@ -400,6 +401,7 @@ export function useAiChat(isOpen: boolean) {
     (chatId: string) => {
       setActiveChatId(chatId);
       setStreamingContent("");
+      documentSelectionRef.current += 1;
       setPendingAttachments([]);
       setPendingDocumentContexts([]);
       resetQuizState();
@@ -413,6 +415,7 @@ export function useAiChat(isOpen: boolean) {
     setMessages([]);
     setChatModeState("lesson");
     setStreamingContent("");
+    documentSelectionRef.current += 1;
     setPendingAttachments([]);
     setPendingDocumentContexts([]);
     setError(null);
@@ -447,6 +450,7 @@ export function useAiChat(isOpen: boolean) {
           setActiveChatId(null);
           setMessages([]);
           setStreamingContent("");
+          documentSelectionRef.current += 1;
           setPendingAttachments([]);
           setPendingDocumentContexts([]);
           resetQuizState();
@@ -462,6 +466,8 @@ export function useAiChat(isOpen: boolean) {
   );
 
   const addDocumentAttachment = useCallback(async (document: IDocument) => {
+    const selectionId = documentSelectionRef.current + 1;
+    documentSelectionRef.current = selectionId;
     const normalized = normalizeDocument(document);
     console.debug("[AtlasAI Document] Selected document:", {
       id: normalized.id,
@@ -472,11 +478,6 @@ export function useAiChat(isOpen: boolean) {
       hasDownloadUrl: Boolean(normalized.downloadUrl),
       hasStoragePath: Boolean(normalized.storagePath),
     });
-
-    if (pendingAttachments.some((attachment) => attachment.id === normalized.id)) {
-      setError("Bu doküman zaten sohbet bağlamına eklendi.");
-      return;
-    }
 
     const allowedExtensions = ["pdf", "txt", "pptx", "ppt", "docx", "doc", "jpg", "jpeg", "png"];
     const isSupportedDoc = allowedExtensions.includes(normalized.extension) || 
@@ -511,11 +512,11 @@ export function useAiChat(isOpen: boolean) {
           name: normalized.name,
         });
         const clipped = normalized.extractedText.slice(0, 12000);
-        setPendingDocumentContexts((prev) => [
-          ...prev,
+        if (documentSelectionRef.current !== selectionId) return;
+        setPendingDocumentContexts([
           { id: normalized.id, text: `--- ${normalized.name} ---\n${clipped}` },
         ]);
-        setPendingAttachments((prev) => [...prev, meta]);
+        setPendingAttachments([meta]);
         return;
       }
 
@@ -542,12 +543,13 @@ export function useAiChat(isOpen: boolean) {
 
       const response = await fetch(url);
       if (!response.ok) throw new Error("Doküman içeriği alınamadı.");
+      if (documentSelectionRef.current !== selectionId) return;
 
       if (normalized.isTxt) {
         const text = await response.text();
         const clipped = text.slice(0, 12000);
-        setPendingDocumentContexts((prev) => [
-          ...prev,
+        if (documentSelectionRef.current !== selectionId) return;
+        setPendingDocumentContexts([
           { id: normalized.id, text: `--- ${normalized.name} ---\n${clipped}` },
         ]);
       } else {
@@ -562,8 +564,8 @@ export function useAiChat(isOpen: boolean) {
         }
 
         const base64 = await arrayBufferToBase64(await response.arrayBuffer());
-        setPendingDocumentContexts((prev) => [
-          ...prev,
+        if (documentSelectionRef.current !== selectionId) return;
+        setPendingDocumentContexts([
           {
             id: normalized.id,
             part: { inlineData: { mimeType: normalized.mimeType, data: base64 } },
@@ -571,8 +573,10 @@ export function useAiChat(isOpen: boolean) {
         ]);
       }
 
-      setPendingAttachments((prev) => [...prev, meta]);
+      if (documentSelectionRef.current !== selectionId) return;
+      setPendingAttachments([meta]);
     } catch (err) {
+      if (documentSelectionRef.current !== selectionId) return;
       console.error("[AtlasAI Document] PDF/TXT read failed", {
         id: normalized.id,
         name: normalized.name,
@@ -580,9 +584,10 @@ export function useAiChat(isOpen: boolean) {
       });
       setError("Bu dokümanın içeriği şu anda okunamıyor. Lütfen desteklenen formatlarda (PDF, PPTX, DOCX, TXT, resim) bir doküman seçin.");
     }
-  }, [pendingAttachments]);
+  }, []);
 
   const removeAttachment = useCallback((index: number) => {
+    documentSelectionRef.current += 1;
     setPendingAttachments((prev) => {
       const removedId = prev[index]?.id;
       if (removedId) {
@@ -617,6 +622,7 @@ export function useAiChat(isOpen: boolean) {
         .map((context) => context.part)
         .filter((part): part is GeminiPart => Boolean(part));
 
+      documentSelectionRef.current += 1;
       setPendingAttachments([]);
       setPendingDocumentContexts([]);
       setIsSending(true);
@@ -806,6 +812,7 @@ export function useAiChat(isOpen: boolean) {
         assistantMessage: "Sorular hazırlanıyor...",
         createdAt: new Date(),
       });
+      documentSelectionRef.current += 1;
       setPendingAttachments([]);
       setPendingDocumentContexts([]);
       setIsSending(true);

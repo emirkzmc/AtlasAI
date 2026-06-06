@@ -209,7 +209,7 @@ export default function PerformancePage() {
           </h3>
           {loading ? (
             <div className="h-[245px] flex items-center justify-center text-[14px] text-[#999]">
-              YÃ¼kleniyor...
+              Yükleniyor...
             </div>
           ) : hasDailyTrend ? (
             <div className="h-[245px]">
