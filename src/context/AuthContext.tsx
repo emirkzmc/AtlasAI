@@ -48,6 +48,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
             };
           } else {
             authUser.emailVerified = firebaseUser.emailVerified;
+            // Firebase Auth e-postası her zaman kaynaktır (Firestore stale olabilir)
+            authUser.email = firebaseUser.email ?? authUser.email;
           }
 
           setUser(authUser);
@@ -110,6 +112,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       };
     } else {
       authUser.emailVerified = reloaded.emailVerified;
+      // Firebase Auth e-postası her zaman kaynaktır
+      authUser.email = reloaded.email ?? authUser.email;
     }
     setUser(authUser);
   }, []);

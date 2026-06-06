@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { AiChatMessage } from "../../types/aiChat.types";
-import TypewriterText from "./TypewriterText";
 import LoadingDots from "./LoadingDots";
+import MarkdownMessage from "./MarkdownMessage";
 
 type AIChatMessageListProps = {
   messages: AiChatMessage[];
@@ -9,6 +9,7 @@ type AIChatMessageListProps = {
   isSending: boolean;
   userFirstName: string;
   centeredComposer?: ReactNode;
+  onOpenQuiz?: (messageId: string) => void;
 };
 
 export default function AIChatMessageList({
@@ -17,6 +18,7 @@ export default function AIChatMessageList({
   isSending,
   userFirstName,
   centeredComposer,
+  onOpenQuiz,
 }: AIChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const isEmpty = messages.length === 0 && !streamingContent && !isSending;
@@ -49,59 +51,73 @@ export default function AIChatMessageList({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 md:px-10 pt-4 pb-36 space-y-5">
-      {messages.map((msg) => (
-        <div
-          key={msg.id}
-          className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-        >
-          <div className={`max-w-[85%] flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
-            {msg.attachments?.length ? (
-              <div className="mb-1.5 flex flex-wrap justify-end gap-1">
-                {msg.attachments.map((a, i) => (
-                  <span
-                    key={i}
-                    className="max-w-45 truncate text-[11px] px-2 py-0.5 rounded-full bg-white text-[#5B4F4B] border border-[#D4C4C4] shadow-sm"
-                  >
-                    {a.name}
-                  </span>
-                ))}
-              </div>
-            ) : null}
+    <div className="flex-1 overflow-y-auto px-6 md:px-10 pt-4 pb-36">
+      <div className="max-w-180 mx-auto w-full space-y-5">
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
             <div
-              className={`rounded-2xl px-4 py-3 text-[15px] leading-relaxed whitespace-pre-wrap ${
-                msg.role === "user"
-                  ? "bg-[#8B6B6B] text-white rounded-br-md"
-                  : "bg-white text-[#1a1a1a] shadow-sm border border-[#E8E8E8] rounded-bl-md"
+              className={`flex flex-col ${
+                msg.role === "user" ? "max-w-[85%] items-end" : "max-w-[92%] items-start"
               }`}
             >
-              {msg.role === "model" ? (
-                <TypewriterText text={msg.content} className="text-[#1a1a1a]" />
-              ) : (
-                msg.content
+              {msg.attachments?.length ? (
+                <div className="mb-1.5 flex flex-wrap justify-end gap-1">
+                  {msg.attachments.map((a, i) => (
+                    <span
+                      key={i}
+                      className="max-w-45 truncate text-[11px] px-2 py-0.5 rounded-full bg-white text-[#5B4F4B] border border-[#D4C4C4] shadow-sm"
+                    >
+                      {a.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <div
+                className={`rounded-2xl px-4 py-3 text-[15px] leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-[#8B6B6B] text-white rounded-br-md whitespace-pre-wrap"
+                    : "bg-white text-[#1a1a1a] shadow-sm border border-[#E8E8E8] rounded-bl-md"
+                }`}
+              >
+                {msg.role === "model" ? (
+                  <MarkdownMessage content={msg.content} />
+                ) : (
+                  msg.content
+                )}
+              </div>
+              {msg.metadata?.quiz && (
+                <button
+                  onClick={() => onOpenQuiz?.(msg.id)}
+                  className="cursor-pointer mt-2 px-4 py-1.5 bg-[#8B6B6B] text-white text-sm rounded-lg hover:bg-[#7a5c5c] transition-colors shadow-sm"
+                >
+                  Testi Görüntüle
+                </button>
               )}
             </div>
           </div>
-        </div>
-      ))}
+        ))}
 
-      {isSending && !streamingContent && (
-        <div className="flex justify-start">
-          <div className="bg-white rounded-2xl px-4 py-2 shadow-sm border border-[#E8E8E8]">
-            <LoadingDots />
+        {isSending && !streamingContent && (
+          <div className="flex justify-start">
+            <div className="flex items-center bg-white rounded-2xl px-3 py-1.5 shadow-sm border border-[#E8E8E8]">
+              <LoadingDots />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {streamingContent && (
-        <div className="flex justify-start">
-          <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 text-[15px] bg-white text-[#1a1a1a] shadow-sm border border-[#E8E8E8] leading-relaxed whitespace-pre-wrap">
-            <TypewriterText text={streamingContent} live className="text-[#1a1a1a]" />
+        {streamingContent && (
+          <div className="flex justify-start">
+            <div className="max-w-[92%] rounded-2xl rounded-bl-md px-4 py-3 text-[15px] bg-white text-[#1a1a1a] shadow-sm border border-[#E8E8E8] leading-relaxed">
+              <MarkdownMessage content={streamingContent} live />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div ref={bottomRef} />
+        <div ref={bottomRef} />
+      </div>
     </div>
   );
 }

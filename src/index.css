@@ -19,3 +19,69 @@
 body {
   font-family: inherit;
 }
+
+/* Global Scrollbar */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #8B6B6B transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8B6B6B;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6c5151;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Hide scrollbar arrows everywhere */
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.atlasai-ai-modal,
+.atlasai-ai-modal * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(214, 166, 180, 0.62) rgba(255, 250, 251, 0.35);
+}
+
+.atlasai-ai-modal *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.atlasai-ai-modal *::-webkit-scrollbar-track {
+  background: rgba(255, 250, 251, 0.35);
+  border-radius: 999px;
+}
+
+.atlasai-ai-modal *::-webkit-scrollbar-thumb {
+  background: rgba(214, 166, 180, 0.58);
+  border: 2px solid rgba(255, 250, 251, 0.55);
+  border-radius: 999px;
+}
+
+.atlasai-ai-modal *::-webkit-scrollbar-thumb:hover {
+  background: rgba(203, 143, 162, 0.72);
+}
+
+.atlasai-ai-modal [class*="overflow-y-auto"],
+.atlasai-ai-modal [class*="overflow-auto"] {
+  overflow-x: hidden;
+}

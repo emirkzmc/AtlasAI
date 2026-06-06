@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react'
+import { useState, type ChangeEvent, type InputHTMLAttributes } from 'react'
 import Input from './Input'
 import Button from './Button'
 import Label from './Label'
@@ -9,9 +9,9 @@ type FloatingLabelProps = {
   type?: string
   value?: string
   onChange?: (e: ChangeEvent<HTMLInputElement>) => void
-}
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'name' | 'type' | 'value' | 'onChange'>
 
-export default function FloatingLabel({ label, name, type = 'text', value: controlledValue, onChange: controlledOnChange }: FloatingLabelProps) {
+export default function FloatingLabel({ label, name, type = 'text', value: controlledValue, onChange: controlledOnChange, ...inputProps }: FloatingLabelProps) {
   const [isFocused, setIsFocused] = useState(false)
   const [internalValue, setInternalValue] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -43,6 +43,7 @@ export default function FloatingLabel({ label, name, type = 'text', value: contr
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         className={isPasswordType ? 'pr-10' : ''}
+        {...inputProps}
       />
       <Label
         htmlFor={name}

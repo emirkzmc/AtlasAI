@@ -62,7 +62,7 @@ export default function WrongAnswersPage() {
 
   const visibleItems = useMemo(() => {
     if (activeCategory === "all") return items;
-    return items.filter((item) => item.category === activeCategory);
+    return items.filter((item) => item.documentTitle === activeCategory);
   }, [activeCategory, items]);
 
   return (

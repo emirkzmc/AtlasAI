@@ -18,6 +18,10 @@ export type GeminiPart =
   | { text: string }
   | { inlineData: { mimeType: string; data: string } };
 
+interface GeminiGenerationConfig {
+  responseMimeType?: "application/json" | "text/plain";
+}
+
 function assertApiKey(): string {
   if (!GEMINI_API_KEY?.trim()) {
     throw new Error(
@@ -100,4 +104,45 @@ export async function* streamGeminiChat(
       }
     }
   }
+}
+
+export async function generateGeminiContent(
+  model: GeminiModelId,
+  contents: GeminiContentPart[],
+  systemInstruction?: string,
+  signal?: AbortSignal,
+  generationConfig?: GeminiGenerationConfig
+): Promise<string> {
+  const key = assertApiKey();
+  const url = `${BASE_URL}/models/${model}:generateContent?key=${key}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal,
+    body: JSON.stringify({
+      contents,
+      ...(systemInstruction
+        ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
+        : {}),
+      ...(generationConfig ? { generationConfig } : {}),
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("[generateGeminiContent] API error:", res.status, errText);
+    throw new Error(parseGeminiError(res.status, errText));
+  }
+
+  const json = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const text = json.candidates?.[0]?.content?.parts
+    ?.map((part) => part.text)
+    .filter((part): part is string => Boolean(part))
+    .join("");
+
+  if (!text) throw new Error("Gemini yanıtı boş döndü.");
+  return text;
 }

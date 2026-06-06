@@ -23,16 +23,28 @@ export function useWrongAnswers() {
   }, []);
 
   useEffect(() => {
+    const handleQuizSaved = () => refresh();
+    window.addEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+    return () => window.removeEventListener("atlasai:quiz-result-saved", handleQuizSaved);
+  }, [refresh]);
+
+  useEffect(() => {
     if (!user?.uid) {
-      setItems([]);
-      setLoading(false);
-      setError(false);
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setItems([]);
+        setLoading(false);
+        setError(false);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
     let cancelled = false;
-    setLoading(true);
-    setError(false);
+    const stateTimeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        setLoading(true);
+        setError(false);
+      }
+    }, 0);
 
     fetchWrongAnswers(user.uid)
       .then((wrongAnswers) => {
@@ -51,6 +63,7 @@ export function useWrongAnswers() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(stateTimeoutId);
     };
   }, [user?.uid, refreshKey]);
 
@@ -58,7 +71,8 @@ export function useWrongAnswers() {
     const counts = new Map<string, number>();
 
     items.forEach((item) => {
-      counts.set(item.category, (counts.get(item.category) ?? 0) + 1);
+      const label = item.documentTitle || (item.documentId ? "Bilinmeyen doküman" : "Dokümansız");
+      counts.set(label, (counts.get(label) ?? 0) + 1);
     });
 
     return [

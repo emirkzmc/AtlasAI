@@ -9,7 +9,7 @@ interface ActivityHeatmapProps {
 
 /** 0–4+ giriş sayısına göre renk (4+ en koyu). */
 function intensityColor(count: number): string {
-  if (count <= 0) return "#EBEDF0";
+  if (count <= 0) return "#d6d6d6";
   if (count === 1) return "#C6E6C3";
   if (count === 2) return "#7BC96F";
   if (count === 3) return "#3B8535";

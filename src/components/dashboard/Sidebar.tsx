@@ -51,8 +51,10 @@ export default function Sidebar({ activeId, setActiveId, isMobileOpen, setIsMobi
         x: isMobile ? (isMobileOpen ? 0 : -SIDEBAR_OPEN) : 0
       }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className={`h-screen bg-white flex flex-col shrink-0 overflow-hidden ${
-        isMobile ? "fixed inset-y-0 left-0 z-50 shadow-2xl" : "relative"
+      className={`h-screen bg-white flex flex-col shrink-0 ${
+        effectiveIsOpen ? "overflow-hidden" : "overflow-visible"
+      } ${
+        isMobile ? "fixed inset-y-0 left-0 z-50 shadow-2xl" : "relative z-20"
       }`}
       style={{ borderRight: isMobile ? "none" : "1px solid #E5E5E5" }}
     >
@@ -96,7 +98,7 @@ export default function Sidebar({ activeId, setActiveId, isMobileOpen, setIsMobi
           )}
         </div>
 
-        <div className="flex flex-col gap-6 overflow-y-auto overflow-x-hidden">
+        <div className={`flex flex-col gap-6 ${effectiveIsOpen ? "overflow-y-auto overflow-x-hidden" : "overflow-visible"}`}>
           {SIDEBAR_MENU_DATA.map((section, idx) => (
             <div key={idx} className="flex flex-col shrink-0">
               <div
@@ -130,14 +132,13 @@ export default function Sidebar({ activeId, setActiveId, isMobileOpen, setIsMobi
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") setActiveId(item.id);
                       }}
-                      className={`group flex items-center cursor-pointer transition-[width,background-color,box-shadow] duration-200 ${
+                      className={`group flex items-center cursor-pointer transition-all duration-300 overflow-hidden ${
                         effectiveIsOpen
                           ? "relative w-full"
-                          : "absolute left-0 top-0 z-10 bg-white hover:z-50 hover:w-[240px] hover:bg-[#F3F0EF] hover:shadow-[2px_0_12px_rgba(0,0,0,0.06)]"
+                          : "absolute left-0 top-0 z-10 bg-white w-[88px] hover:z-50 hover:w-[250px] hover:bg-[#F3F0EF] hover:shadow-[4px_0_16px_rgba(0,0,0,0.08)] hover:rounded-r-xl"
                       } ${isActive ? "text-[#5B4F4B]" : "text-[#737373]"}`}
                       style={{
                         height: ITEM_HEIGHT,
-                        width: effectiveIsOpen ? "100%" : SIDEBAR_CLOSED,
                         borderLeft: isActive
                           ? "4px solid #5B4F4B"
                           : "4px solid transparent",
@@ -166,12 +167,12 @@ export default function Sidebar({ activeId, setActiveId, isMobileOpen, setIsMobi
                       </div>
 
                       <span
-                        className={`min-w-0 text-[15px] font-medium pr-3 whitespace-nowrap overflow-hidden text-ellipsis transition-[opacity,max-width] duration-250 ${
+                        className={`min-w-0 text-[15px] font-medium pr-3 whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-300 ${
                           isActive ? "text-[#5B4F4B]" : "text-[#737373]"
                         } ${
                           effectiveIsOpen
                             ? ""
-                            : "opacity-0 max-w-0 invisible group-hover:opacity-100 group-hover:max-w-[160px] group-hover:visible"
+                            : "opacity-0 max-w-0 invisible group-hover:opacity-100 group-hover:max-w-[180px] group-hover:visible group-hover:ml-1"
                         }`}
                         style={
                           effectiveIsOpen

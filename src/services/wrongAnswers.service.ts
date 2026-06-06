@@ -13,6 +13,7 @@ const db = getFirestore(app);
 export interface WrongAnswerItem {
   id: string;
   documentId: string | null;
+  documentTitle: string;
   documentName: string;
   category: string;
   question: string;
@@ -48,15 +49,29 @@ export async function fetchWrongAnswers(uid: string): Promise<WrongAnswerItem[]>
 
   return snap.docs.map((item) => {
     const data = item.data();
+    const documentTitle = readString(
+      data,
+      ["documentTitle", "documentName", "pdfName", "fileName"],
+      "Bilinmeyen doküman"
+    );
 
     return {
       id: item.id,
       documentId: readString(data, ["documentId"], "") || null,
-      documentName: readString(data, ["documentName", "pdfName", "fileName"], "Doküman"),
+      documentTitle,
+      documentName: documentTitle,
       category: readString(data, ["category", "subject", "lesson"], "Diğer"),
       question: readString(data, ["question", "questionText"], "Soru metni yok"),
-      userAnswer: readString(data, ["userAnswer", "selectedAnswer", "wrongAnswer"], "-"),
-      correctAnswer: readString(data, ["correctAnswer", "answer"], "-"),
+      userAnswer: readString(
+        data,
+        ["selectedAnswerText", "userAnswer", "selectedAnswer", "wrongAnswer"],
+        "-"
+      ),
+      correctAnswer: readString(
+        data,
+        ["correctAnswerText", "correctAnswer", "answer"],
+        "-"
+      ),
       explanation: readString(data, ["explanation", "solution"], "Açıklama henüz yok."),
       createdAt: readDate(data),
     };

@@ -19,6 +19,8 @@ import type {
   ChatAttachmentMeta,
   GeminiModelId,
 } from "../types/aiChat.types";
+import type { AiChatMode } from "../types/quiz.types";
+import type { QuizAttemptStatus } from "../types/quiz.types";
 
 const db = getFirestore(app);
 
@@ -28,6 +30,27 @@ function chatsCol(uid: string) {
 
 function messagesCol(uid: string, chatId: string) {
   return collection(db, "users", uid, "aiChats", chatId, "messages");
+}
+
+function normalizeMessageMetadata(
+  metadata: AiChatMessage["metadata"] | undefined
+): AiChatMessage["metadata"] | undefined {
+  if (!metadata) return undefined;
+  const createdAt = metadata.quizContext?.createdAt;
+  return {
+    ...metadata,
+    quizContext: metadata.quizContext
+      ? {
+          ...metadata.quizContext,
+          createdAt:
+            createdAt instanceof Timestamp
+              ? createdAt.toDate()
+              : createdAt instanceof Date
+                ? createdAt
+                : new Date(),
+        }
+      : undefined,
+  };
 }
 
 export async function fetchUserChats(uid: string): Promise<AiChatSummary[]> {
@@ -40,13 +63,17 @@ export async function fetchUserChats(uid: string): Promise<AiChatSummary[]> {
         id: d.id,
         title: (data.title as string) ?? "Yeni sohbet",
         model: (data.model as GeminiModelId) ?? "gemini-2.5-flash",
+        mode: data.mode as AiChatMode | undefined,
+        documentTitle: typeof data.documentTitle === "string" ? data.documentTitle : null,
+        prompt: typeof data.prompt === "string" ? data.prompt : null,
+        quizStatus: (data.quizStatus as QuizAttemptStatus | undefined) ?? null,
         createdAt: (data.createdAt as Timestamp)?.toDate() ?? new Date(),
         updatedAt: (data.updatedAt as Timestamp)?.toDate() ?? new Date(),
       };
     });
   } catch (err) {
     console.error("[fetchUserChats] Error:", err);
-    throw new Error("Sohbet geçmişi yüklenemedi.");
+    throw new Error("Sohbet geçmişi yüklenemedi.", { cause: err });
   }
 }
 
@@ -65,22 +92,27 @@ export async function fetchChatMessages(
         content: (data.content as string) ?? "",
         createdAt: (data.createdAt as Timestamp)?.toDate() ?? new Date(),
         attachments: data.attachments as ChatAttachmentMeta[] | undefined,
+        metadata: normalizeMessageMetadata(
+          data.metadata as AiChatMessage["metadata"] | undefined
+        ),
       };
     });
   } catch (err) {
     console.error("[fetchChatMessages] Error:", err);
-    throw new Error("Mesajlar yüklenemedi.");
+    throw new Error("Mesajlar yüklenemedi.", { cause: err });
   }
 }
 
 export async function createChat(
   uid: string,
   model: GeminiModelId,
-  title = "Yeni sohbet"
+  title = "Yeni sohbet",
+  mode: AiChatMode = "lesson"
 ): Promise<string> {
   const ref = await addDoc(chatsCol(uid), {
     title,
     model,
+    mode,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -103,14 +135,21 @@ export async function deleteChat(uid: string, chatId: string): Promise<void> {
     await deleteDoc(doc(db, "users", uid, "aiChats", chatId));
   } catch (err) {
     console.error("[deleteChat] Error:", err);
-    throw new Error("Sohbet silinemedi.");
+    throw new Error("Sohbet silinemedi.", { cause: err });
   }
 }
 
 export async function updateChatMeta(
   uid: string,
   chatId: string,
-  patch: { title?: string; model?: GeminiModelId }
+  patch: {
+    title?: string;
+    model?: GeminiModelId;
+    mode?: AiChatMode;
+    documentTitle?: string | null;
+    prompt?: string | null;
+    quizStatus?: QuizAttemptStatus | null;
+  }
 ): Promise<void> {
   await updateDoc(doc(db, "users", uid, "aiChats", chatId), {
     ...patch,
@@ -118,18 +157,33 @@ export async function updateChatMeta(
   });
 }
 
+export async function updateMessageMetadata(
+  uid: string,
+  chatId: string,
+  messageId: string,
+  metadataPatch: Partial<NonNullable<AiChatMessage["metadata"]>>
+): Promise<void> {
+  const updates: Record<string, any> = {};
+  for (const [key, val] of Object.entries(metadataPatch)) {
+    updates[`metadata.${key}`] = val;
+  }
+  await updateDoc(doc(db, "users", uid, "aiChats", chatId, "messages", messageId), updates);
+}
+
 export async function saveMessage(
   uid: string,
   chatId: string,
   role: AiChatMessage["role"],
   content: string,
-  attachments?: ChatAttachmentMeta[]
+  attachments?: ChatAttachmentMeta[],
+  metadata?: AiChatMessage["metadata"]
 ): Promise<string> {
   const ref = await addDoc(messagesCol(uid, chatId), {
     role,
     content,
     createdAt: serverTimestamp(),
     ...(attachments?.length ? { attachments } : {}),
+    ...(metadata ? { metadata } : {}),
   });
   await updateDoc(doc(db, "users", uid, "aiChats", chatId), {
     updatedAt: serverTimestamp(),
