@@ -10,7 +10,10 @@ interface BuildTestPromptInput {
 }
 
 export function buildLessonSystemInstruction(): string {
-  return ATLAS_AI_SYSTEM_INSTRUCTION;
+  return [
+    ATLAS_AI_SYSTEM_INSTRUCTION,
+    "Yanıt biçimi: Markdown kullan, ancak gereksiz boş satır bırakma. Paragraflar arasında en fazla bir boş satır olsun. Liste maddelerini düzgün hizala; bir madde başlığından sonra açıklamayı aynı madde içinde kısa ve net ver. Çok uzun, dağınık veya fazla boşluklu markdown üretme.",
+  ].join("\n");
 }
 
 export function buildTestSystemInstruction(): string {

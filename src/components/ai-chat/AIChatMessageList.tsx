@@ -58,7 +58,11 @@ export default function AIChatMessageList({
             key={msg.id}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
-            <div className={`max-w-[85%] flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+            <div
+              className={`flex flex-col ${
+                msg.role === "user" ? "max-w-[85%] items-end" : "max-w-[92%] items-start"
+              }`}
+            >
               {msg.attachments?.length ? (
                 <div className="mb-1.5 flex flex-wrap justify-end gap-1">
                   {msg.attachments.map((a, i) => (
@@ -72,9 +76,9 @@ export default function AIChatMessageList({
                 </div>
               ) : null}
               <div
-                className={`rounded-2xl px-4 py-3 text-[15px] leading-relaxed whitespace-pre-wrap ${
+                className={`rounded-2xl px-4 py-3 text-[15px] leading-relaxed ${
                   msg.role === "user"
-                    ? "bg-[#8B6B6B] text-white rounded-br-md"
+                    ? "bg-[#8B6B6B] text-white rounded-br-md whitespace-pre-wrap"
                     : "bg-white text-[#1a1a1a] shadow-sm border border-[#E8E8E8] rounded-bl-md"
                 }`}
               >
@@ -98,8 +102,7 @@ export default function AIChatMessageList({
 
         {isSending && !streamingContent && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-2 bg-white rounded-2xl px-4 py-2 shadow-sm border border-[#E8E8E8] text-[13px] text-[#5B4F4B]">
-              <span>Yükleniyor</span>
+            <div className="flex items-center bg-white rounded-2xl px-3 py-1.5 shadow-sm border border-[#E8E8E8]">
               <LoadingDots />
             </div>
           </div>
@@ -107,7 +110,7 @@ export default function AIChatMessageList({
 
         {streamingContent && (
           <div className="flex justify-start">
-            <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 text-[15px] bg-white text-[#1a1a1a] shadow-sm border border-[#E8E8E8] leading-relaxed whitespace-pre-wrap">
+            <div className="max-w-[92%] rounded-2xl rounded-bl-md px-4 py-3 text-[15px] bg-white text-[#1a1a1a] shadow-sm border border-[#E8E8E8] leading-relaxed">
               <MarkdownMessage content={streamingContent} live />
             </div>
           </div>
