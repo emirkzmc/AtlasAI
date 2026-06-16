@@ -56,22 +56,22 @@ export default function OverviewPage() {
 
   const successRateSubtitle =
     totalAnswered === 0
-      ? "Henüz soru çözülmedi"
-      : `${correctAnswers} doğru / ${wrongAnswers} yanlış / ${blankAnswers} boş`;
+      ? "Henüz görev tamamlanmadı"
+      : `${correctAnswers} başarılı senaryo / ${wrongAnswers} hatalı çözüm / ${blankAnswers} es geçilen`;
 
   const solvedValue = statsError ? "--" : statsLoading ? "" : String(totalAnswered);
 
   const solvedSubtitle =
     (stats?.totalQuestionsGenerated ?? 0) > 0
-      ? `${stats?.totalQuestionsGenerated} soru üretildi`
-      : "Henüz soru çözülmedi";
+      ? `${stats?.totalQuestionsGenerated} problem üretildi`
+      : "Henüz problem çözülmedi";
 
   const totalDocsValue = totalDocumentsLoading ? "" : String(totalDocuments);
 
   const totalDocsSubtitle =
     totalDocuments === 0
-      ? "Henüz döküman yüklenmedi"
-      : `${totalDocuments} döküman mevcut`;
+      ? "Henüz teknik doküman yüklenmedi"
+      : `${totalDocuments} teknik doküman mevcut`;
 
   const streakValue =
     statsError ? "--" : statsLoading ? "" : String(stats?.currentStreak ?? 0);
@@ -111,7 +111,7 @@ export default function OverviewPage() {
         />
 
         <StatCard
-          title="Çözülen Sorular"
+          title="Çözülen Problemler"
           loading={statsLoading}
           value={solvedValue}
           unit="ADET"
@@ -121,7 +121,7 @@ export default function OverviewPage() {
         />
 
         <StatCard
-          title="Toplam Döküman"
+          title="İncelenen Teknik Dokümanlar"
           loading={totalDocumentsLoading}
           value={totalDocsValue}
           unit="ADET"

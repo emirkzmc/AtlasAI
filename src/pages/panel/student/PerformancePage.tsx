@@ -53,7 +53,7 @@ export default function PerformancePage() {
   const hasDailyTrend = dailyTrend.some((item) => item.totalQuestionsAnswered > 0);
 
   const distributionData = {
-    labels: ["Doğru", "Yanlış", "Boş"],
+    labels: ["Başarılı", "Hatalı", "Es Geçilen"],
     datasets: [
       {
         data: hasDistributionData ? [correct, wrong, blank] : [1],
@@ -149,22 +149,22 @@ export default function PerformancePage() {
     <div className="space-y-8 pb-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <PerformanceStatCard
-          label="Toplam Soru"
+          label="Toplam Problem"
           value={loading ? "" : getDisplayValue(summary.total)}
           accentColor="#5B4F4B"
         />
         <PerformanceStatCard
-          label="Doğru"
+          label="Başarılı"
           value={loading ? "" : getDisplayValue(summary.correct)}
           accentColor="#1F9D49"
         />
         <PerformanceStatCard
-          label="Yanlış"
+          label="Hatalı"
           value={loading ? "" : getDisplayValue(summary.wrong)}
           accentColor="#EF5A5A"
         />
         <PerformanceStatCard
-          label="Boş"
+          label="Es Geçilen"
           value={loading ? "" : getDisplayValue(summary.blank)}
           accentColor="#C2A48F"
         />
@@ -179,16 +179,16 @@ export default function PerformancePage() {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(320px,420px)_1fr] gap-6">
         <section className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-6 min-h-[320px]">
           <h3 className="text-[11px] font-semibold text-[#737373] uppercase tracking-wide mb-5">
-            Doğru / Yanlış / Boş Dağılımı
+            Başarılı / Hatalı / Es Geçilen Dağılımı
           </h3>
           <div className="h-[190px]">
             <Doughnut data={distributionData} options={distributionOptions} />
           </div>
           <div className="grid grid-cols-3 gap-3 mt-6">
             {[
-              { label: "Doğru", value: summary.correct, color: "#1F9D49" },
-              { label: "Yanlış", value: summary.wrong, color: "#EF5A5A" },
-              { label: "Boş", value: summary.blank, color: "#C2A48F" },
+              { label: "Başarılı", value: summary.correct, color: "#1F9D49" },
+              { label: "Hatalı", value: summary.wrong, color: "#EF5A5A" },
+              { label: "Es Geçilen", value: summary.blank, color: "#C2A48F" },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-2 min-w-0">
                 <span
@@ -225,7 +225,7 @@ export default function PerformancePage() {
 
       <section className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-6">
         <h3 className="text-[11px] font-semibold text-[#737373] uppercase tracking-wide mb-5">
-          PDF Soru Performansı
+          Teknik Doküman Analiz Performansı
         </h3>
 
         <div className="overflow-x-auto">
@@ -233,16 +233,16 @@ export default function PerformancePage() {
             <thead>
               <tr className="border-b border-[#E5E5E5]">
                 <th className="text-left text-[11px] font-semibold text-[#737373] uppercase tracking-wide py-3 px-3">
-                  Doküman
+                  Kaynak/Doküman
                 </th>
                 <th className="text-left text-[11px] font-semibold text-[#737373] uppercase tracking-wide py-3 px-3">
-                  Soru
+                  Problem Sayısı
                 </th>
                 <th className="text-left text-[11px] font-semibold text-[#737373] uppercase tracking-wide py-3 px-3">
-                  Doğru
+                  Başarılı Çözüm
                 </th>
                 <th className="text-left text-[11px] font-semibold text-[#737373] uppercase tracking-wide py-3 px-3">
-                  Başarı
+                  Başarı Oranı
                 </th>
               </tr>
             </thead>

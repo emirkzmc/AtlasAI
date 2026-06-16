@@ -36,7 +36,7 @@ export default function AIChatInput({
   onRemoveAttachment,
   disabled = false,
   placement = "bottom",
-  placeholder = "Fizik sorusu sorun veya doküman ekleyin",
+  placeholder = "Yazılım problemi sorun, kod ekleyin veya doküman yükleyin",
   modeLocked = false,
 }: AIChatInputProps) {
   const [text, setText] = useState("");

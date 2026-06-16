@@ -43,7 +43,7 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
   const inputPlaceholder =
     chat.chatMode === "test"
       ? "Test hazırlamak istediğiniz konuyu yazın"
-      : "Fizik sorusu sorun veya doküman ekleyin";
+      : "Yazılım problemi sorun, kod ekleyin veya doküman yükleyin";
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
