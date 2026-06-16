@@ -28,7 +28,7 @@ function RegisterImage({ role, direction }: RegisterImageProps) {
         exit="exit"
       >
         <motion.img
-          src={isStudent ? '/img/login-img.png' : '/img/login-img2.png'}
+          src={isStudent ? '/img/login-img.webp' : '/img/login-img2.png'}
           alt="Kayıt görseli"
           className="h-full w-full object-cover"
           initial={{ scale: 1.08 }}

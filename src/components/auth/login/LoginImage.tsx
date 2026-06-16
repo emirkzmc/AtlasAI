@@ -28,7 +28,7 @@ function LoginImage() {
         exit="exit"
       >
         <motion.img
-          src="/img/login-img3.png"
+          src="/img/login-img3.webp"
           alt="Giriş görseli"
           className="h-full w-full object-cover"
           initial={{ scale: 1.08 }}
